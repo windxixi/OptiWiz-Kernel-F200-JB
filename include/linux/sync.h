@@ -194,7 +194,6 @@ static inline void sync_fence_waiter_init(struct sync_fence_waiter *waiter,
 {
 	waiter->callback = callback;
 }
-
 /*
  * API for sync_timeline implementers
  */
