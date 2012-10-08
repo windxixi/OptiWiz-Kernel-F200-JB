@@ -1947,12 +1947,9 @@ static int msm_fb_pan_idle(struct msm_fb_data_type *mfd)
 	mutex_lock(&mfd->sync_mutex);
 	if (mfd->is_committing) {
 		mutex_unlock(&mfd->sync_mutex);
-		ret = wait_for_completion_interruptible_timeout(
-				&mfd->commit_comp,
+		ret = wait_for_completion_timeout(&mfd->commit_comp,
 			msecs_to_jiffies(WAIT_FENCE_TIMEOUT));
-		if (ret < 0)
-			ret = -ERESTARTSYS;
-		else if (!ret)
+		if (ret <= 0)
 			pr_err("%s wait for commit_comp timeout %d %d",
 				__func__, ret, mfd->is_committing);
 	} else {
@@ -3323,7 +3320,7 @@ static int msmfb_overlay_play(struct fb_info *info, unsigned long *argp)
 
 	if (info->node == 0 && !(mfd->cont_splash_done)) { /* primary */
 		mdp_set_dma_pan_info(info, NULL, TRUE);
-		if (msm_fb_blank_sub(FB_BLANK_UNBLANK, info, mfd->op_enable)) {
+		if (msm_fb_blank_sub(FB_BLANK_UNBLANK, info, TRUE)) {
 			pr_err("%s: can't turn on display!\n", __func__);
 			return -EINVAL;
 		}
@@ -3669,17 +3666,17 @@ static int msmfb_handle_pp_ioctl(struct msm_fb_data_type *mfd,
 static int msmfb_handle_buf_sync_ioctl(struct msm_fb_data_type *mfd,
 						struct mdp_buf_sync *buf_sync)
 {
-	int i, fence_cnt = 0, ret = 0;
+	int i, fence_cnt = 0, ret;
 	int acq_fen_fd[MDP_MAX_FENCE_FD];
 	struct sync_fence *fence;
 
-	if ((buf_sync->acq_fen_fd_cnt > MDP_MAX_FENCE_FD) ||
+	if ((buf_sync->acq_fen_fd_cnt == 0) ||
+		(buf_sync->acq_fen_fd_cnt > MDP_MAX_FENCE_FD) ||
 		(mfd->timeline == NULL))
 		return -EINVAL;
 
-	if (buf_sync->acq_fen_fd_cnt)
-		ret = copy_from_user(acq_fen_fd, buf_sync->acq_fen_fd,
-				buf_sync->acq_fen_fd_cnt * sizeof(int));
+	ret = copy_from_user(acq_fen_fd, buf_sync->acq_fen_fd,
+			buf_sync->acq_fen_fd_cnt * sizeof(int));
 	if (ret) {
 		pr_err("%s:copy_from_user failed", __func__);
 		return ret;
@@ -3698,10 +3695,6 @@ static int msmfb_handle_buf_sync_ioctl(struct msm_fb_data_type *mfd,
 	fence_cnt = i;
 	if (ret)
 		goto buf_sync_err_1;
-	mfd->acq_fen_cnt = fence_cnt;
-	if (buf_sync->flags & MDP_BUF_SYNC_FLAG_WAIT) {
-		msm_fb_wait_for_fence(mfd);
-	}
 	mfd->cur_rel_sync_pt = sw_sync_pt_create(mfd->timeline,
 			mfd->timeline_value + 2);
 	if (mfd->cur_rel_sync_pt == NULL) {
@@ -3726,6 +3719,7 @@ static int msmfb_handle_buf_sync_ioctl(struct msm_fb_data_type *mfd,
 		pr_err("%s:copy_to_user failed", __func__);
 		goto buf_sync_err_3;
 	}
+	mfd->acq_fen_cnt = buf_sync->acq_fen_fd_cnt;
 	mutex_unlock(&mfd->sync_mutex);
 	return ret;
 buf_sync_err_3:
