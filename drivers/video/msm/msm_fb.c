@@ -1010,7 +1010,6 @@ static int msm_fb_blank_sub(int blank_mode, struct fb_info *info,
 	if (!op_enable)
 		return -EPERM;
 
-	msm_fb_pan_idle(mfd);
 
 	pdata = (struct msm_fb_panel_data *)mfd->pdev->dev.platform_data;
 	if ((!pdata) || (!pdata->on) || (!pdata->off)) {
