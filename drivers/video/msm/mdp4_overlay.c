@@ -2111,10 +2111,8 @@ void mdp4_mixer_blend_setup(int mixer)
 		blend->bg_alpha = 0x0ff - s_pipe->alpha;
 		blend->fg_alpha = s_pipe->alpha;
 		blend->co3_sel = 1; /* use fg alpha */
-//[S_QCT_PATCH][SR01036939] alpha blending error
 		pr_debug("%s: bg alpha %d, fg alpha %d\n",
 			__func__, blend->bg_alpha, blend->fg_alpha);
-//[E_QCT_PATCH]
 		if (s_pipe->is_fg) {
 			if (s_pipe->alpha == 0xff) {
 				blend->solidfill = 1;
@@ -2126,27 +2124,13 @@ void mdp4_mixer_blend_setup(int mixer)
 				if (!(s_pipe->flags & MDP_BLEND_FG_PREMULT))
 					blend->op |=
 						MDP4_BLEND_FG_ALPHA_FG_PIXEL;
-<<<<<<< HEAD
 				else
 					blend->fg_alpha = 0xff;
 				blend->op |= MDP4_BLEND_BG_INV_ALPHA;
-=======
->>>>>>> f12d751... Revert "msm: display: fb blend setting via MSMFB_METADATA_SET ioctl"
 			} else
 				blend->op = MDP4_BLEND_BG_ALPHA_FG_CONST;
 			// blend->op |= MDP4_BLEND_BG_INV_ALPHA; //[QCT_PATCH][SR01036939] alpha blending error
 		} else if (d_alpha) {
-<<<<<<< HEAD
-			// QC_0207 : start
-			ptype = mdp4_overlay_format2type(s_pipe->src_format);
-			if (ptype == OVERLAY_TYPE_VIDEO &&
-				(!(s_pipe->flags & MDP_BACKEND_COMPOSITION))) {
-				blend->op = (MDP4_BLEND_FG_ALPHA_BG_PIXEL |
-							MDP4_BLEND_FG_INV_ALPHA);
-				if (!(s_pipe->flags & MDP_BLEND_FG_PREMULT) &&
-						!(d_pipe->flags & MDP_BLEND_FG_PREMULT))
-					blend->op |= MDP4_BLEND_BG_ALPHA_BG_PIXEL;
-=======
 			ptype = mdp4_overlay_format2type(s_pipe->src_format);
 			if (ptype == OVERLAY_TYPE_VIDEO) {
 				blend->op = (MDP4_BLEND_FG_ALPHA_BG_PIXEL |
@@ -2154,21 +2138,13 @@ void mdp4_mixer_blend_setup(int mixer)
 				if (!(s_pipe->flags & MDP_BLEND_FG_PREMULT))
 					blend->op |=
 						MDP4_BLEND_BG_ALPHA_BG_PIXEL;
->>>>>>> f12d751... Revert "msm: display: fb blend setting via MSMFB_METADATA_SET ioctl"
 				blend->co3_sel = 0; /* use bg alpha */
 			} else {
 				/* s_pipe is rgb without alpha */
 				blend->op = (MDP4_BLEND_FG_ALPHA_FG_CONST |
-<<<<<<< HEAD
-					MDP4_BLEND_BG_ALPHA_BG_CONST);
-				blend->bg_alpha = 0;
-			}
-			// QC_0207 : end
-=======
 					    MDP4_BLEND_BG_ALPHA_BG_CONST);
 				blend->bg_alpha = 0;
 			}
->>>>>>> f12d751... Revert "msm: display: fb blend setting via MSMFB_METADATA_SET ioctl"
 		}
 
 		if (s_pipe->transp != MDP_TRANSP_NOP) {
@@ -4048,22 +4024,4 @@ done:
 	mutex_unlock(&mfd->dma->ov_mutex);
 	return err;
 }
-int mdp4_update_base_blend(struct msm_fb_data_type *mfd,
-			struct mdp_blend_cfg *mdp_blend_cfg)
-{
-	int ret = 0;
-	u32 mixer_num;
-	struct blend_cfg *blend;
-	mixer_num = mdp4_get_mixer_num(mfd->panel_info.type);
-	if (!ctrl)
-		return -EPERM;
-	blend = &ctrl->blend[mixer_num][MDP4_MIXER_STAGE_BASE];
-	if (mdp_blend_cfg->is_premultiplied) {
-		blend->bg_alpha = 0xFF;
-		blend->op = MDP4_BLEND_FG_ALPHA_BG_CONST;
-	} else {
-		blend->op = MDP4_BLEND_FG_ALPHA_FG_PIXEL;
-		blend->bg_alpha = 0;
-	}
-	return ret;
-}
+
