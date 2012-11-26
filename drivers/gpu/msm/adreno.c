@@ -1738,8 +1738,24 @@ unsigned int adreno_hang_detect(struct kgsl_device *device,
 	if (!adreno_dev->fast_hang_detect)
 		return 0;
 
-	if (is_adreno_rbbm_status_idle(device))
-		return 0;
+		if (is_adreno_rbbm_status_idle(device)) {
+
+		/*
+		 * On A20X if the RPTR != WPTR and the device is idle, then
+		 * the last write to WPTR probably failed to latch so write it
+		 * again
+		 */
+
+		if (adreno_is_a2xx(adreno_dev)) {
+			unsigned int rptr;
+			adreno_regread(device, REG_CP_RB_RPTR, &rptr);
+			if (rptr != adreno_dev->ringbuffer.wptr)
+				adreno_regwrite(device, REG_CP_RB_WPTR,
+					adreno_dev->ringbuffer.wptr);
+		}
+
+ 		return 0;
+	}
 
 	for (i = 0; i < hang_detect_regs_count; i++) {
 		adreno_regread(device, hang_detect_regs[i],
