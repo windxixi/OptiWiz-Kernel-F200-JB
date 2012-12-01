@@ -2129,29 +2129,25 @@ static void adreno_next_event(struct kgsl_device *device,
 	unsigned int context_id = _get_context_id(event->context);
 	struct adreno_device *adreno_dev = ADRENO_DEVICE(device);
 
+	/* If the context was destroyed for some reason then just leave */
+	if (context_id == KGSL_CONTEXT_INVALID)
+		return;
+
 	status = kgsl_check_timestamp(device, event->context, event->timestamp);
 	if (!status) {
 		kgsl_sharedmem_readl(&device->memstore, &enableflag,
 			KGSL_MEMSTORE_OFFSET(context_id, ts_cmp_enable));
-		/*
-		 * Barrier is needed here to make sure the read from memstore
-		 * has posted
-		 */
-
 		mb();
 
 		if (enableflag) {
 			kgsl_sharedmem_readl(&device->memstore, &ref_ts,
 				KGSL_MEMSTORE_OFFSET(context_id,
 					ref_wait_ts));
-
-			/* Make sure the memstore read has posted */
 			mb();
 			if (timestamp_cmp(ref_ts, event->timestamp) >= 0) {
 				kgsl_sharedmem_writel(&device->memstore,
 				KGSL_MEMSTORE_OFFSET(context_id,
 					ref_wait_ts), event->timestamp);
-				/* Make sure the memstore write is posted */
 				wmb();
 			}
 		} else {
@@ -2163,15 +2159,10 @@ static void adreno_next_event(struct kgsl_device *device,
 			kgsl_sharedmem_writel(&device->memstore,
 				KGSL_MEMSTORE_OFFSET(context_id,
 					ts_cmp_enable), enableflag);
-
-			/* Make sure the memstore write gets posted */
 			wmb();
-
-			/*
-			 * submit a dummy packet so that even if all
-			 * commands upto timestamp get executed we will still
-			 * get an interrupt
-			 */
+			/* submit a dummy packet so that even if all
+			* commands upto timestamp get executed we will still
+			* get an interrupt */
 			cmds[0] = cp_type3_packet(CP_NOP, 1);
 			cmds[1] = 0;
 
