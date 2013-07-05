@@ -423,8 +423,8 @@ static irqreturn_t mdm_status_change(int irq, void *dev_id)
 
 static irqreturn_t mdm_pblrdy_change(int irq, void *dev_id)
 {
-	pr_info("%s: pbl ready:%d\n", __func__,
-			gpio_get_value(mdm_drv->mdm2ap_pblrdy));
+	//pr_info("%s: pbl ready:%d\n", __func__,
+	//		gpio_get_value(mdm_drv->mdm2ap_pblrdy));
 
 	return IRQ_HANDLED;
 }

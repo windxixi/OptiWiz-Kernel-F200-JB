@@ -2,10 +2,11 @@
 
 # Do not execute this program with "./envsetup.sh" , simply source it with ". envsetup.sh"
 
-defconfig=gkatt-perf_defconfig
+defconfig=gkatt_bcm-perf_defconfig
 
 export ARCH=arm
-export CROSS_COMPILE=../prebuilts/gcc/linux-x86/arm/arm-linux-androideabi-4.6/bin/arm-linux-androideabi-
+export SUBARCH=arm
+export CROSS_COMPILE=../../../prebuilts/gcc/linux-x86/arm/arm-eabi-4.6/bin/arm-eabi-
 
 bold=$(tput bold)
 normal=$(tput sgr0)
