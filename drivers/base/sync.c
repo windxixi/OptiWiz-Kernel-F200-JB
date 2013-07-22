@@ -138,6 +138,7 @@ void sync_timeline_signal(struct sync_timeline *obj)
 	struct list_head *pos, *n;
 
 	trace_sync_timeline(obj);
+
 	spin_lock_irqsave(&obj->active_list_lock, flags);
 
 	list_for_each_safe(pos, n, &obj->active_list_head) {
@@ -194,6 +195,7 @@ void sync_pt_free(struct sync_pt *pt)
 
 	kfree(pt);
 }
+EXPORT_SYMBOL(sync_pt_free);
 
 /* call with pt->parent->active_list_lock held */
 static int _sync_pt_has_signaled(struct sync_pt *pt)
