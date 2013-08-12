@@ -1157,8 +1157,8 @@ static int __devinit lp5521_probe(struct i2c_client *client,
 		goto fail2;
 	}
 
-	lp5521_run_led_pattern(1, chip); //1: Power On pattern number
-	LP5521_INFO_MSG("[%s] pattern id : 1(Power on)", __func__);
+	lp5521_run_led_pattern(0, chip); //0: Off mode
+	LP5521_INFO_MSG("[%s] pattern id : 0(off mode)", __func__);
 	LP5521_INFO_MSG("[%s] complete\n", __func__);
 
 	return ret;
