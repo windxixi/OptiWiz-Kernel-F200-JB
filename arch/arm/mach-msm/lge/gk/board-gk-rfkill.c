@@ -29,17 +29,61 @@
 
 #define LGPS3_GPIO_BT_RESET_N	PM8921_GPIO_PM_TO_SYS(30)
 
+/* PIN values taken from board-gk-gpiomux.c */
+#define GPIO_BT_UART_RTS 17
+#define GPIO_BT_UART_CTS 16
+#define GPIO_BT_UART_RXD 15
+#define GPIO_BT_UART_TXD 14
+
+
+
+static unsigned bt_uart_on_table[] = {
+	GPIO_CFG(GPIO_BT_UART_RTS, 2, GPIO_CFG_OUTPUT, GPIO_CFG_NO_PULL,
+		 GPIO_CFG_2MA),
+	GPIO_CFG(GPIO_BT_UART_CTS, 2, GPIO_CFG_INPUT, GPIO_CFG_NO_PULL,
+		 GPIO_CFG_2MA),
+	GPIO_CFG(GPIO_BT_UART_RXD, 2, GPIO_CFG_INPUT, GPIO_CFG_NO_PULL,
+		 GPIO_CFG_2MA),
+	GPIO_CFG(GPIO_BT_UART_TXD, 2, GPIO_CFG_OUTPUT, GPIO_CFG_NO_PULL,
+		 GPIO_CFG_2MA),
+};
+
+static unsigned bt_uart_off_table[] = {
+	GPIO_CFG(GPIO_BT_UART_RTS, 0, GPIO_CFG_OUTPUT, GPIO_CFG_PULL_UP,
+		 GPIO_CFG_2MA),
+	GPIO_CFG(GPIO_BT_UART_CTS, 0, GPIO_CFG_OUTPUT, GPIO_CFG_PULL_UP,
+		 GPIO_CFG_2MA),
+	GPIO_CFG(GPIO_BT_UART_RXD, 0, GPIO_CFG_OUTPUT, GPIO_CFG_PULL_UP,
+		 GPIO_CFG_2MA),
+	GPIO_CFG(GPIO_BT_UART_TXD, 0, GPIO_CFG_OUTPUT, GPIO_CFG_PULL_UP,
+		 GPIO_CFG_2MA),
+};
+
 static struct rfkill *bt_rfk;
 static const char bt_name[] = "brcm_Bluetooth_rfkill";
 
 static int bluetooth_set_power(void *data, bool blocked)
 {
-       printk(KERN_ERR "bluetooth_set_power set blocked=%d",blocked);
+	int pin, rc = 0;
+	printk(KERN_ERR "bluetooth_set_power set blocked=%d",blocked);
 	if (!blocked) {
-	    gpio_direction_output(LGPS3_GPIO_BT_RESET_N, 0);
-		msleep(30);
+		for (pin = 0; pin < ARRAY_SIZE(bt_uart_on_table); pin++) {
+			rc = gpio_tlmm_config(bt_uart_on_table[pin],
+					      GPIO_CFG_ENABLE);
+		if (rc < 0)
+				pr_err("%s: gpio_tlmm_config(%#x)=%d\n",
+				       __func__, bt_uart_on_table[pin], rc);
+		}
 	    gpio_direction_output(LGPS3_GPIO_BT_RESET_N, 1);
+	    msleep(50);
 	} else {
+		for (pin = 0; pin < ARRAY_SIZE(bt_uart_off_table); pin++) {
+			rc = gpio_tlmm_config(bt_uart_off_table[pin],
+					      GPIO_CFG_ENABLE);
+			if (rc < 0)
+				pr_err("%s: gpio_tlmm_config(%#x)=%d\n",
+				       __func__, bt_uart_off_table[pin], rc);
+		}
 	    gpio_direction_output(LGPS3_GPIO_BT_RESET_N, 0);
 	}
 	return 0;
@@ -68,9 +112,11 @@ static int lgps3_rfkill_probe(struct platform_device *pdev)
 		goto err_gpio_reset;
            }
 	}
-      gpio_direction_output(LGPS3_GPIO_BT_RESET_N, 0);
 
 	bluetooth_set_power(NULL, default_state);
+    gpio_tlmm_config(GPIO_CFG(LGPS3_GPIO_BT_RESET_N, 0, GPIO_CFG_OUTPUT,
+		GPIO_CFG_PULL_DOWN, GPIO_CFG_16MA), GPIO_CFG_ENABLE);
+    gpio_direction_output(LGPS3_GPIO_BT_RESET_N, 0);
 
 	bt_rfk = rfkill_alloc(bt_name, &pdev->dev, RFKILL_TYPE_BLUETOOTH,
 				&lgps3_rfkill_ops, NULL);

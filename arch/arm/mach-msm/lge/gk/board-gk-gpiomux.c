@@ -96,7 +96,7 @@ struct msm_gpiomux_config apq8064_earjack_configs[] = {
 #ifdef CONFIG_LGE_BLUESLEEP
 //BEGIN: 0019632 chanha.park@lge.com 2012-05-31
 //ADD: 0019632: [F200][BT] Bluetooth board bring-up
-/*static struct gpiomux_setting gsbi6 = {
+static struct gpiomux_setting gsbi6 = {
 	.func = GPIOMUX_FUNC_2,
 	.drv = GPIOMUX_DRV_8MA,
 	.pull = GPIOMUX_PULL_NONE,
@@ -106,7 +106,7 @@ static struct gpiomux_setting gsbi6_suspend = {
 	.drv = GPIOMUX_DRV_8MA,
 	.pull = GPIOMUX_PULL_NONE,
 };
-*/
+
 
 static struct gpiomux_setting bt_pcm = {
     .func = GPIOMUX_FUNC_1,
@@ -1428,7 +1428,6 @@ static struct msm_gpiomux_config apq8064_mi2s_configs[] __initdata = {
 //BEGIN: 0019632 chanha.park@lge.com 2012-05-31
 //ADD: 0019632: [F200][BT] Bluetooth board bring-up
 #ifdef CONFIG_LGE_BLUESLEEP
-#if 0
 static struct msm_gpiomux_config gsbi6_uart_configs[] __initdata = {
 	{
 		.gpio	   = 14,	/* BT_UART_TXD */
@@ -1459,7 +1458,6 @@ static struct msm_gpiomux_config gsbi6_uart_configs[] __initdata = {
 		},
 	}
 };
-#endif
 
 static struct msm_gpiomux_config bt_pcm_configs[] __initdata = {
 	{
@@ -2228,8 +2226,8 @@ void __init apq8064_init_gpiomux(void)
 			ARRAY_SIZE(bt_pcm_configs));
 	msm_gpiomux_install(mpq8064_uartdm_configs,
 			ARRAY_SIZE(mpq8064_uartdm_configs));
-/* 	msm_gpiomux_install(gsbi6_uart_configs,
-		 	ARRAY_SIZE(gsbi6_uart_configs)); */
+	msm_gpiomux_install(gsbi6_uart_configs,
+			ARRAY_SIZE(gsbi6_uart_configs));
 
 	msm_gpiomux_install(msm8960_bt_host_wakeup_configs,
 			ARRAY_SIZE(msm8960_bt_host_wakeup_configs));
