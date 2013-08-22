@@ -204,6 +204,7 @@ void bluesleep_sleep_wakeup(void)
 		set_bit(BT_EXT_WAKE, &flags);
 		clear_bit(BT_ASLEEP, &flags);
 		/*Activating UART */
+		hsuart_power(1);
 	}
 }
 
@@ -230,6 +231,7 @@ static void bluesleep_sleep_work(struct work_struct *work)
 			/* UART clk is not turned off immediately. Release
 			 * wakelock after 500 ms.
 			 */
+			hsuart_power(0);
 			wake_lock_timeout(&bsi->wake_lock, HZ / 2);
 		} else {
 			//BT_DBG("Do not anything modtimer...");
@@ -477,6 +479,7 @@ static int bluesleep_start(void)
 		gpio_set_value(bsi->ext_wake, 1);
 	set_bit(BT_EXT_WAKE, &flags);
 #if BT_ENABLE_IRQ_WAKE
+	hsuart_power(1);
 	retval = enable_irq_wake(bsi->host_wake_irq);
 	if (retval < 0) {
 		BT_ERR("Couldn't enable BT_HOST_WAKE as wakeup interrupt");
@@ -520,6 +523,8 @@ static void bluesleep_stop(void)
 	if (test_bit(BT_ASLEEP, &flags)) {
 		clear_bit(BT_ASLEEP, &flags);
 		hsuart_power(1);
+	} else {
+		hsuart_power(0);
 	}
 
 	atomic_inc(&open_count);
@@ -796,6 +801,8 @@ free_bsi:
 
 static int bluesleep_remove(struct platform_device *pdev)
 {
+	if (test_bit(BT_ASLEEP, &flags))
+			hsuart_power(1);
 	free_irq(bsi->host_wake_irq, NULL);
 	gpio_free(bsi->host_wake);
 	gpio_free(bsi->ext_wake);
