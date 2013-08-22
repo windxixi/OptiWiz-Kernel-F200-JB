@@ -44,9 +44,9 @@ static void boot_cradle_det_func(void)
     printk("%s : boot pouch === > %d \n", __func__ , cradle->pouch);
 
       if (cradle->pouch == 1)
-        state = CRADLE_SMARTCOVER;
+        state = CRADLE_DESKDOCK;
       else
-        state = CRADLE_SMARTCOVER_NO_DEV;
+        state = CRADLE_NO_DEV;
 
     printk("%s : [Cradle] boot cradle value is %d\n", __func__ , state);
     cradle->state = state;
@@ -67,9 +67,9 @@ static void pm8xxx_cradle_work_func(struct work_struct *work)
     spin_lock_irqsave(&cradle->lock, flags);
 
       if (cradle->pouch == 1)
-        state = CRADLE_SMARTCOVER;
+        state = CRADLE_DESKDOCK;
       else
-        state = CRADLE_SMARTCOVER_NO_DEV;
+        state = CRADLE_NO_DEV;
 
     printk("%s : [Cradle] cradle value is %d\n", __func__ , state);
     cradle->state = state;
