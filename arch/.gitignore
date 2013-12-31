@@ -1,0 +1,7 @@
+arm/boot/Image
+arm/boot/compressed/ashldi3.S
+arm/boot/compressed/lib1funcs.S
+arm/boot/compressed/vmlinux
+arm/boot/compressed/vmlinux.lds
+arm/boot/zImage
+arm/kernel/vmlinux.lds
