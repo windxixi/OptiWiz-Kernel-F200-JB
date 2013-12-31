@@ -1,0 +1,13 @@
+ui_print("***********************************************");
+ui_print("*              OptiWiz JB Kernel              *");
+ui_print("*               for Optimus Vu2               *");
+ui_print("**********************************************");
+ui_print(" ");
+ui_print("Made by CUBE,kykint");
+ui_print(" ");
+ui_print("Flashing kernel...");
+package_extract_file("boot.img", "/dev/block/platform/msm_sdcc.1/by-name/boot");
+set_progress(1.000000);
+ui_print(" ");
+ui_print("Done. Please reboot your device now.");
+ui_print(" ");
