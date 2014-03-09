@@ -74,7 +74,7 @@ static int __init mipi_video_lgit_lh470wx1_hd_pt_init(void)
 	pinfo.bl_max = 0xFF;
 	pinfo.bl_min = 0;
 	pinfo.fb_num = 2;
-
+	pinfo.lcd.blt_ctrl = 1;
 	pinfo.mipi.mode = DSI_VIDEO_MODE;
 	pinfo.mipi.pulse_mode_hsa_he = FALSE;
 /* jinho.jang 2011.03.22,  Modify code to apply IEF function */

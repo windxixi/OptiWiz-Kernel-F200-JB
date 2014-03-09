@@ -54,6 +54,7 @@ struct disp_info_type_suspend {
 	boolean op_enable;
 	boolean sw_refreshing_enable;
 	boolean panel_power_on;
+	boolean op_suspend;
 };
 
 struct msmfb_writeback_data_list {
@@ -190,6 +191,7 @@ struct msm_fb_data_type {
 	u32 writeback_state;
 	bool writeback_active_cnt;
 	int cont_splash_done;
+	void *cpu_pm_hdl;
 	int vsync_sysfs_created;
 	u32 acq_fen_cnt;
 	struct sync_fence *acq_fen[MDP_MAX_FENCE_FD];
