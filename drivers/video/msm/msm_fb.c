@@ -2061,7 +2061,6 @@ static int msm_fb_pan_display_sub(struct fb_var_screeninfo *var,
 	struct mdp_dirty_region *dirtyPtr = NULL;
 	struct msm_fb_data_type *mfd = (struct msm_fb_data_type *)info->par;
 
-#if !defined(LGE_DSDR_KERNEL_SUPPORT)
 	/*
 	 * If framebuffer is 2, io pen display is not allowed.
 	 */
@@ -2070,7 +2069,6 @@ static int msm_fb_pan_display_sub(struct fb_var_screeninfo *var,
 		       __func__, info->node);
 		return -EPERM;
 	}
-#endif //LGE_DSDR_KERNEL_SUPPORT
 
 	if (info->node != 0 || mfd->cont_splash_done)	/* primary */
 		if ((!mfd->op_enable) || (!mfd->panel_power_on))
@@ -2155,25 +2153,12 @@ static int msm_fb_pan_display_sub(struct fb_var_screeninfo *var,
 	msm_fb_signal_timeline(mfd);
 	up(&msm_fb_pan_sem);
 
-#if defined(CONFIG_MACH_LGE)
-	if ((unset_bl_level && !bl_updated) || !splash_screen_done)
-		schedule_delayed_work(&mfd->backlight_worker,
-					backlight_duration);
-
-	++mfd->panel_info.frame_count;
-
-	if (!check_updated)
-		check_updated = 1;
-
-	return 0;
-#else
 	if (unset_bl_level && !bl_updated)
 		schedule_delayed_work(&mfd->backlight_worker,
 				backlight_duration);
 
 	++mfd->panel_info.frame_count;
 	return 0;
-#endif
 }
 
 static void msm_fb_commit_wq_handler(struct work_struct *work)
@@ -2199,6 +2184,7 @@ static void msm_fb_commit_wq_handler(struct work_struct *work)
 	mutex_unlock(&mfd->sync_mutex);
 
 }
+
 static int msm_fb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 {
 	struct msm_fb_data_type *mfd = (struct msm_fb_data_type *)info->par;
@@ -3329,18 +3315,8 @@ static int msmfb_overlay_play_wait(struct fb_info *info, unsigned long *argp)
 	return ret;
 }
 
-static int msmfb_overlay_commit(struct fb_info *info, unsigned long *argp)
-{
-	int ret, ndx;
 
-	ret = copy_from_user(&ndx, argp, sizeof(ndx));
-	if (ret) {
-		pr_err("%s: ioctl failed\n", __func__);
-		return ret;
-	}
 
-	return mdp4_overlay_commit(info, ndx);
-}
 
 static int msmfb_overlay_play(struct fb_info *info, unsigned long *argp)
 {
@@ -4201,6 +4177,14 @@ static int msm_fb_ioctl(struct fb_info *info, unsigned int cmd,
 			return ret;
 
 		ret = msmfb_handle_pp_ioctl(mfd, &mdp_pp);
+		break;
+	case MSMFB_BUFFER_SYNC:
+		ret = copy_from_user(&buf_sync, argp, sizeof(buf_sync));
+		if (ret)
+			return ret;
+		ret = msmfb_handle_buf_sync_ioctl(mfd, &buf_sync);
+		if (!ret)
+			ret = copy_to_user(argp, &buf_sync, sizeof(buf_sync));
 		break;
 	case MSMFB_DISPLAY_COMMIT:
 		ret = msmfb_display_commit(info, argp);

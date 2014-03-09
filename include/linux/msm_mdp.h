@@ -520,6 +520,17 @@ struct mdp_display_commit {
 	struct fb_var_screeninfo var;
 	struct mdp_buf_fence buf_fence;
 };
+struct mdp_blend_cfg {
+        uint32_t is_premultiplied;
+};
+
+struct msmfb_metadata {
+        uint32_t op;
+        uint32_t flags;
+        union {
+                struct mdp_blend_cfg blend_cfg;
+        } data;
+};
 
 struct mdp_page_protection {
 	uint32_t page_protection;
