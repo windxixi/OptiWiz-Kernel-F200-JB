@@ -58,7 +58,7 @@ static struct clk *mdp_pclk;
 static struct clk *mdp_lut_clk;
 int mdp_rev;
 int mdp_iommu_split_domain;
-u32 mdp_max_clk = 266667000;
+u32 mdp_max_clk = 200000000;
 
 static struct platform_device *mdp_init_pdev;
 static struct regulator *footswitch, *dsi_pll_vdda, *dsi_pll_vddio;
@@ -1551,6 +1551,7 @@ void mdp_pipe_kickoff(uint32 term, struct msm_fb_data_type *mfd)
 		outpdw(MDP_BASE + 0x0014, 0x0);	/* start DMA */
 	} else if (term == MDP_OVERLAY0_TERM) {
 		mdp_pipe_ctrl(MDP_OVERLAY0_BLOCK, MDP_BLOCK_POWER_ON, FALSE);
+		mdp_lut_enable();
 		outpdw(MDP_BASE + 0x0004, 0);
 	} else if (term == MDP_OVERLAY1_TERM) {
 		mdp_pipe_ctrl(MDP_OVERLAY1_BLOCK, MDP_BLOCK_POWER_ON, FALSE);
@@ -2706,7 +2707,7 @@ static int mdp_probe(struct platform_device *pdev)
 		if (mfd->panel_info.pdest == DISPLAY_1)
 			mfd->dma = &dma2_data;
 		else {
-			printk(KERN_ERR "Invalid Selection of destination panel\n");
+			printk(KERN_ERR "[LCD][DEBUG] Invalid Selection of destination panel\n");
 			rc = -ENODEV;
 			mdp_clk_ctrl(0);
 			goto mdp_probe_err;
@@ -2747,7 +2748,7 @@ static int mdp_probe(struct platform_device *pdev)
 		if (mfd->panel_info.pdest == DISPLAY_1)
 			mfd->dma = &dma2_data;
 		else {
-			printk(KERN_ERR "Invalid Selection of destination panel\n");
+			printk(KERN_ERR "[LCD][DEBUG] Invalid Selection of destination panel\n");
 			rc = -ENODEV;
 			mdp_clk_ctrl(0);
 			goto mdp_probe_err;
@@ -2859,7 +2860,7 @@ static int mdp_probe(struct platform_device *pdev)
 		break;
 #endif
 	default:
-		printk(KERN_ERR "mdp_probe: unknown device type!\n");
+		printk(KERN_ERR "[LCD][DEBUG] mdp_probe: unknown device type!\n");
 		rc = -ENODEV;
 		mdp_clk_ctrl(0);
 		goto mdp_probe_err;
@@ -2880,7 +2881,7 @@ static int mdp_probe(struct platform_device *pdev)
 			msm_bus_scale_register_client(
 					mdp_pdata->mdp_bus_scale_table);
 		if (!mdp_bus_scale_handle) {
-			printk(KERN_ERR "%s not able to get bus scale\n",
+			printk(KERN_ERR "[LCD][DEBUG] %s not able to get bus scale\n",
 				__func__);
 			return -ENOMEM;
 		}
@@ -2958,6 +2959,7 @@ void mdp_footswitch_ctrl(boolean on)
 	mipi_dsi_prepare_clocks();
 	mipi_dsi_ahb_ctrl(1);
 	mipi_dsi_phy_ctrl(1);
+	pr_debug("mdp.c mdp_footswitch_ctrl call\n");
 	mipi_dsi_clk_enable();
 
 	if (on && !mdp_footswitch_on) {
@@ -3012,7 +3014,7 @@ static int mdp_suspend(struct platform_device *pdev, pm_message_t state)
 	if (pdev->id == 0) {
 		mdp_suspend_sub();
 		if (mdp_current_clk_on) {
-			printk(KERN_WARNING"MDP suspend failed\n");
+			printk(KERN_WARNING "[LCD][DEBUG] MDP suspend failed\n");
 			return -EBUSY;
 		}
 	}
@@ -3080,7 +3082,7 @@ static int __init mdp_driver_init(void)
 
 	ret = mdp_register_driver();
 	if (ret) {
-		printk(KERN_ERR "mdp_register_driver() failed!\n");
+		printk(KERN_ERR "[LCD][DEBUG] mdp_register_driver() failed!\n");
 		return ret;
 	}
 

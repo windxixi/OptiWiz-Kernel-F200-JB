@@ -1769,7 +1769,7 @@ void mdp4_mixer_stage_commit(int mixer)
 	 */
 	mdp_pipe_ctrl(MDP_CMD_BLOCK, MDP_BLOCK_POWER_ON, FALSE);
 	mdp_clk_ctrl(1);
-
+		pr_err("%s:call mdp4_mixer_blend_setup \n", __func__);
 	mdp4_mixer_blend_setup(mixer);
 
 	off = 0;
@@ -3935,7 +3935,7 @@ int mdp4_v4l2_overlay_set(struct fb_info *info, struct mdp_overlay *req,
 		pr_err("%s:Could not allocate MDP overlay pipe\n", __func__);
 		return err;
 	}
-
+		pr_err("%s:call mdp4_mixer_blend_setup \n", __func__);
 	mdp4_mixer_blend_setup(pipe->mixer_num);
 	*ppipe = pipe;
 
