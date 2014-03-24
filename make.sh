@@ -1,11 +1,11 @@
 #!/bin/bash
 
-OUTDIR=arch/arm/boot
-TOOLCHAINDIR=~/android-toolchain/arm-eabi-4.6
+OUTDIR=~/obj/KERNEL_OBJ/arch/arm/boot
+# TOOLCHAINDIR=~/android-toolchain/arm-eabi-4.6
 TARGET_PRODUCT=vu2sk_SKT_KR
-CROSS_COMPILE=$TOOLCHAINDIR/bin/arm-eabi-
+# CROSS_COMPILE=$TOOLCHAINDIR/bin/arm-eabi-
 defconfig=optiwiz-vu2sk_defconfig
-ramdisk=skramdisk.gz
+ramdisk=ramdisk.img
 base=0x80200000
 ramdiskaddr=0x82200000
 pagesize=2048
@@ -19,7 +19,9 @@ echo ""
 echo "[*] Make defconfig"
 echo ""
 echo ""
-make -j128 $defconfig
+# mkdir -p ~/obj/KERNEL_OBJ/
+# make O=~/obj/KERNEL_OBJ $defconfig
+make -j8 O=~/obj/KERNEL_OBJ
 fi
 
 echo ""
@@ -27,7 +29,7 @@ echo ""
 echo "[*] Make zImage & modules"
 echo ""
 echo ""
-make -j128
+make -j8 O=~/obj/KERNEL_OBJ -j128
 
 if [ ! -e $OUTDIR/zImage ]; then
 echo ""

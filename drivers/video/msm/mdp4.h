@@ -975,5 +975,7 @@ int mdp4_overlay_mdp_pipe_req(struct mdp4_overlay_pipe *pipe,
 int mdp4_overlay_mdp_perf_req(struct msm_fb_data_type *mfd,
 			      struct mdp4_overlay_pipe *plist);
 void mdp4_overlay_mdp_perf_upd(struct msm_fb_data_type *mfd, int flag);
+int mdp4_update_base_blend(struct msm_fb_data_type *mfd,
+				struct mdp_blend_cfg *mdp_blend_cfg);
 int mdp4_overlay_reset(void);
 #endif /* MDP_H */

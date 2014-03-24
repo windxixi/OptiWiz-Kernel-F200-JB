@@ -3691,20 +3691,20 @@ static int msmfb_handle_pp_ioctl(struct msm_fb_data_type *mfd,
 static int msmfb_handle_buf_sync_ioctl(struct msm_fb_data_type *mfd,
 						struct mdp_buf_sync *buf_sync)
 {
-	int i, fence_cnt = 0, ret;
+	int i, fence_cnt = 0, ret = 0;
 	int acq_fen_fd[MDP_MAX_FENCE_FD];
 	struct sync_fence *fence;
 
-	if ((buf_sync->acq_fen_fd_cnt == 0) ||
-		(buf_sync->acq_fen_fd_cnt > MDP_MAX_FENCE_FD) ||
+	if ((buf_sync->acq_fen_fd_cnt > MDP_MAX_FENCE_FD) ||
 		(mfd->timeline == NULL))
 		return -EINVAL;
 
 	if ((!mfd->op_enable) || (!mfd->panel_power_on))
 		return -EPERM;
 
-	ret = copy_from_user(acq_fen_fd, buf_sync->acq_fen_fd,
-			buf_sync->acq_fen_fd_cnt * sizeof(int));
+	if (buf_sync->acq_fen_fd_cnt)
+		ret = copy_from_user(acq_fen_fd, buf_sync->acq_fen_fd,
+				buf_sync->acq_fen_fd_cnt * sizeof(int));
 	if (ret) {
 		pr_err("%s:copy_from_user failed", __func__);
 		return ret;
@@ -3723,6 +3723,10 @@ static int msmfb_handle_buf_sync_ioctl(struct msm_fb_data_type *mfd,
 	fence_cnt = i;
 	if (ret)
 		goto buf_sync_err_1;
+	mfd->acq_fen_cnt = fence_cnt;
+	if (buf_sync->flags & MDP_BUF_SYNC_FLAG_WAIT) {
+		msm_fb_wait_for_fence(mfd);
+	}
 	mfd->cur_rel_sync_pt = sw_sync_pt_create(mfd->timeline,
 			mfd->timeline_value + 2);
 	if (mfd->cur_rel_sync_pt == NULL) {
@@ -3754,7 +3758,6 @@ static int msmfb_handle_buf_sync_ioctl(struct msm_fb_data_type *mfd,
 		pr_err("%s:copy_to_user failed", __func__);
 		goto buf_sync_err_3;
 	}
-	mfd->acq_fen_cnt = buf_sync->acq_fen_fd_cnt;
 	mutex_unlock(&mfd->sync_mutex);
 	return ret;
 buf_sync_err_3:
@@ -4182,10 +4185,13 @@ static int msm_fb_ioctl(struct fb_info *info, unsigned int cmd,
 		ret = copy_from_user(&buf_sync, argp, sizeof(buf_sync));
 		if (ret)
 			return ret;
+
 		ret = msmfb_handle_buf_sync_ioctl(mfd, &buf_sync);
+
 		if (!ret)
 			ret = copy_to_user(argp, &buf_sync, sizeof(buf_sync));
 		break;
+
 	case MSMFB_DISPLAY_COMMIT:
 		ret = msmfb_display_commit(info, argp);
 		break;

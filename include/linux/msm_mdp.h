@@ -494,7 +494,11 @@ struct msmfb_mdp_pp {
 		struct mdp_bl_scale_data bl_scale_data;
 	} data;
 };
-
+enum {
+	metadata_op_none,
+	metadata_op_base_blend,
+	metadata_op_max
+};
 #define MDP_MAX_FENCE_FD	10
 #define MDP_BUF_SYNC_FLAG_WAIT	1
 

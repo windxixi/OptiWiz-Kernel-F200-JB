@@ -4045,3 +4045,8 @@ int mdp4_overlay_reset()
 	perf_current.mdp_bw = OVERLAY_PERF_LEVEL4;
 	return 0;
 }
+int mdp4_update_base_blend(struct msm_fb_data_type *mfd,
+			struct mdp_blend_cfg *mdp_blend_cfg)
+{
+	return 0;
+}
