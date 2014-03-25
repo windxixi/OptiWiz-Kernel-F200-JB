@@ -38,7 +38,7 @@
 #include <mach/iommu_domains.h>
 
 #if defined(CONFIG_MACH_LGE)
-#if defined(CONFIG_FB_MSM_MIPI_LGIT_VIDEO_WXGA_PT)
+#if defined(CONFIG_FB_MSM_MIPI_LGIT_VIDEO_HD_PT)
 #include "mipi_lgit.h"
 #elif defined(CONFIG_FB_MSM_MIPI_LGIT_VIDEO_FHD_PT) ||	defined(CONFIG_FB_MSM_MIPI_LGIT_VIDEO_FHD_INVERSE_PT)
 #include "mipi_lgit_fhd.h"
@@ -726,17 +726,14 @@ int mdp4_dsi_video_off(struct platform_device *pdev)
 	unsigned long flags;
 	int undx, need_wait = 0;
 
-#if defined(CONFIG_FB_MSM_MIPI_LGIT_VIDEO_WXGA_PT) \
-       || defined(CONFIG_FB_MSM_MIPI_LGIT_VIDEO_FHD_INVERSE_PT) \
-       || defined(CONFIG_FB_MSM_MIPI_LGIT_VIDEO_FHD_INVERSE_PT_PANEL)
+/* LGE_CHANGE_S
+* for power sequence of lgit panel
+* 2012-05-28 jungbeom.shim@lge.com
+*/
+#if defined(CONFIG_FB_MSM_MIPI_LGIT_LH470WX1_VIDEO_HD_PT)||defined(CONFIG_FB_MSM_MIPI_LGIT_VIDEO_HD_PT)
 	int retry_cnt = 0;
-#endif
 
 	printk(KERN_INFO "[LCD][DEBUG] %s is started.. \n", __func__);
-
-#if defined(CONFIG_FB_MSM_MIPI_LGIT_VIDEO_WXGA_PT) \
-       || defined(CONFIG_FB_MSM_MIPI_LGIT_VIDEO_FHD_INVERSE_PT) \
-       || defined(CONFIG_FB_MSM_MIPI_LGIT_VIDEO_FHD_INVERSE_PT_PANEL)
 	do {
 		ret = mipi_lgit_lcd_off(pdev);
 
