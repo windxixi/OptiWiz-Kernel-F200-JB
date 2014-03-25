@@ -59,7 +59,6 @@ static struct vsycn_ctrl {
 	int blt_change;
 	int blt_free;
 	int blt_end;
-	int sysfs_created;
 	struct mutex update_lock;
 	struct completion ov_comp;
 	struct completion dmap_comp;
@@ -162,7 +161,7 @@ static void mdp4_dsi_cmd_do_blt(struct msm_fb_data_type *mfd, int enable)
 	mdp4_allocate_writeback_buf(mfd, MDP4_MIXER0);
 
 	if (mfd->ov0_wb_buf->write_addr == 0) {
-		pr_info("%s: no blt_base assigned\n", __func__);
+		pr_err("%s: no blt_base assigned\n", __func__);
 		return;
 	}
 
@@ -204,7 +203,7 @@ static void mdp4_dsi_cmd_do_blt(struct msm_fb_data_type *mfd, int enable)
 		vctrl->blt_free = 4;	/* 4 commits to free wb buf */
 	}
 
-	pr_info("%s: changed=%d enable=%d ov_blt_addr=%x\n", __func__,
+	pr_debug("%s: changed=%d enable=%d ov_blt_addr=%x\n", __func__,
 		vctrl->blt_change, enable, (int)pipe->ov_blt_addr);
 
 	spin_unlock_irqrestore(&vctrl->spin_lock, flags);
@@ -375,7 +374,7 @@ int mdp4_dsi_cmd_pipe_commit(int cndx, int wait)
 	/* kickoff overlay engine */
 	mdp4_stat.kickoff_ov0++;
 	outpdw(MDP_BASE + 0x0004, 0);
-	mb();
+	mb(); /* make sure kickoff ececuted */
 	spin_unlock_irqrestore(&vctrl->spin_lock, flags);
 
 	mdp4_stat.overlay_commit[pipe->mixer_num]++;
@@ -576,7 +575,7 @@ void mdp4_dmap_done_dsi_cmd(int cndx)
 	vctrl->dmap_koff++;
 	vsync_irq_enable(INTR_DMA_P_DONE, MDP_DMAP_TERM);
 	outpdw(MDP_BASE + 0x000c, 0); /* kickoff dmap engine */
-	mb();
+	mb(); /* make sure kickoff executed */
 	spin_unlock(&vctrl->spin_lock);
 }
 
@@ -625,7 +624,7 @@ void mdp4_overlay0_done_dsi_cmd(int cndx)
 	vctrl->dmap_koff++;
 	vsync_irq_enable(INTR_DMA_P_DONE, MDP_DMAP_TERM);
 	outpdw(MDP_BASE + 0x000c, 0); /* kickoff dmap engine */
-	mb();
+	mb(); /* make sure kickoff executed */
 	spin_unlock(&vctrl->spin_lock);
 }
 
@@ -680,13 +679,12 @@ ssize_t mdp4_dsi_cmd_show_event(struct device *dev,
 		vctrl->wait_vsync_cnt = 0;
 		vctrl->vsync_time = ktime_get();
 	}
+
 	spin_lock_irqsave(&vctrl->spin_lock, flags);
 	vsync_tick = ktime_to_ns(vctrl->vsync_time);
 	spin_unlock_irqrestore(&vctrl->spin_lock, flags);
 
 	ret = snprintf(buf, PAGE_SIZE, "VSYNC=%llu", vsync_tick);
-	pr_debug("%s: UEVENT\n", __func__);
-
 	buf[strlen(buf) + 1] = '\0';
 	return ret;
 }
@@ -1018,6 +1016,7 @@ int mdp4_dsi_cmd_off(struct platform_device *pdev)
 	struct vsync_update *vp;
 	int undx;
 	int need_wait, cnt;
+	unsigned long flags;
 
 	pr_debug("%s+: pid=%d\n", __func__, current->pid);
 
@@ -1052,17 +1051,37 @@ int mdp4_dsi_cmd_off(struct platform_device *pdev)
 		}
 	}
 
-	/* message for system suspnded */
-	if (cnt > 10)
-		pr_err("%s:Error,  mdp clocks NOT off\n", __func__);
-	else
-		pr_debug("%s: mdp clocks off at cnt=%d\n", __func__, cnt);
+	if (cnt > 10) {
+		spin_lock_irqsave(&vctrl->spin_lock, flags);
+		vctrl->clk_control = 0;
+		vctrl->clk_enabled = 0;
+		vctrl->expire_tick = 0;
+		spin_unlock_irqrestore(&vctrl->spin_lock, flags);
+		mipi_dsi_clk_cfg(0);
+		mdp_clk_ctrl(0);
+		pr_err("%s: Error, SET_CLK_OFF by force\n", __func__);
+	}
 
 	/* sanity check, free pipes besides base layer */
 	mdp4_overlay_unset_mixer(pipe->mixer_num);
 	mdp4_mixer_stage_down(pipe, 1);
 	mdp4_overlay_pipe_free(pipe);
 	vctrl->base_pipe = NULL;
+
+	if (vctrl->vsync_enabled) {
+		vsync_irq_disable(INTR_PRIMARY_RDPTR, MDP_PRIM_RDPTR_TERM);
+		vctrl->vsync_enabled = 0;
+	}
+
+	undx =  vctrl->update_ndx;
+	vp = &vctrl->vlist[undx];
+	if (vp->update_cnt) {
+		/*
+		 * pipe's iommu will be freed at next overlay play
+		 * and iommu_drop statistic will be increased by one
+		 */
+		vp->update_cnt = 0;     /* empty queue */
+	}
 
 	undx =  vctrl->update_ndx;
 	vp = &vctrl->vlist[undx];
@@ -1125,7 +1144,6 @@ void mdp4_dsi_cmd_overlay(struct msm_fb_data_type *mfd)
 	mutex_lock(&vctrl->update_lock);
 	if (atomic_read(&vctrl->suspend)) {
 		mutex_unlock(&vctrl->update_lock);
-		mutex_unlock(&mfd->dma->ov_mutex);
 		pr_err("%s: suspended, no more pan display\n", __func__);
 		return;
 	}
@@ -1155,10 +1173,11 @@ void mdp4_dsi_cmd_overlay(struct msm_fb_data_type *mfd)
 		mdp4_dsi_cmd_pipe_queue(0, pipe);
 	}
 
+	mutex_lock(&mfd->dma->ov_mutex);
 	mdp4_overlay_mdp_perf_upd(mfd, 1);
 
-	mutex_lock(&mfd->dma->ov_mutex);
 	mdp4_dsi_cmd_pipe_commit(cndx, 0);
+
 	mdp4_overlay_mdp_perf_upd(mfd, 0);
 	mutex_unlock(&mfd->dma->ov_mutex);
 }

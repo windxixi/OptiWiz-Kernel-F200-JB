@@ -52,7 +52,9 @@
 #define MIPI_DSI_PANEL_WXGA	6
 #define MIPI_DSI_PANEL_WUXGA	7
 #define MIPI_DSI_PANEL_720P_PT	8
-#define DSI_PANEL_MAX	8
+#define MIPI_DSI_PANEL_FHD 9
+#define DSI_PANEL_MAX	9
+
 
 enum {		/* mipi dsi panel */
 	DSI_VIDEO_MODE,
@@ -191,11 +193,7 @@ struct dsi_clk_desc {
 #define DSI_BUF_SIZE	64
 #define MIPI_DSI_MRPS	0x04	/* Maximum Return Packet Size */
 
-#ifdef CONFIG_LGE_ESD_CHECK
-#define MIPI_DSI_LEN 32 /* read up to 28 paramters temporary */
-#else
 #define MIPI_DSI_LEN 8 /* 4 x 4 - 6 - 2, bytes dcs header+crc-align  */
-#endif /* CONFIG_LGE_ESD_CHECK */
 
 struct dsi_buf {
 	uint32 *hdr;	/* dsi host header */
@@ -268,7 +266,8 @@ struct dsi_kickoff_action {
 typedef void (*fxn)(u32 data);
 
 #define CMD_REQ_RX	0x0001
-#define CMD_REQ_COMMIT 0x0002
+#define CMD_REQ_COMMIT	0x0002
+#define CMD_CLK_CTRL	0x0004
 #define CMD_REQ_NO_MAX_PKT_SIZE 0x0008
 
 struct dcs_cmd_req {
@@ -378,9 +377,6 @@ int mipi_dsi_cmdlist_put(struct dcs_cmd_req *cmdreq);
 struct dcs_cmd_req *mipi_dsi_cmdlist_get(void);
 void mipi_dsi_cmdlist_commit(int from_mdp);
 void mipi_dsi_cmd_mdp_busy(void);
-/*2012-10-17Case Number 00998634 */
-void mipi_dsi_cmd_mdp_busy_for_mipi_off(void );
-
 
 #ifdef CONFIG_FB_MSM_MDP303
 void update_lane_config(struct msm_panel_info *pinfo);

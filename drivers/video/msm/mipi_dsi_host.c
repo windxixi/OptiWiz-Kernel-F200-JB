@@ -24,9 +24,8 @@
 #include <linux/semaphore.h>
 #include <linux/uaccess.h>
 #include <linux/clk.h>
-#include <linux/platform_device.h>
-#include <linux/gpio.h>
 #include <linux/iopoll.h>
+#include <linux/platform_device.h>
 
 #include <asm/system.h>
 #include <asm/mach-types.h>
@@ -901,12 +900,7 @@ void mipi_dsi_host_init(struct mipi_panel_info *pinfo)
 
 	/* from frame buffer, low power mode */
 	/* DSI_COMMAND_MODE_DMA_CTRL */
-#if defined(CONFIG_FB_MSM_MIPI_LGIT_LH470WX1_VIDEO_HD_PT)
-	if(system_state != SYSTEM_BOOTING)
-		MIPI_OUTP(MIPI_DSI_BASE + 0x38, 0x14000000);
-#else
 	MIPI_OUTP(MIPI_DSI_BASE + 0x38, 0x14000000);
-#endif
 
 	data = 0;
 	if (pinfo->te_sel)
@@ -976,29 +970,30 @@ void mipi_dsi_controller_cfg(int enable)
 
 	uint32 dsi_ctrl;
 	uint32 status;
-	u32 sleep_us = 1000;
-	u32 timeout_us = 16000;
+	int cnt;
 
-	/* Check for CMD_MODE_DMA_BUSY */
-	if (readl_poll_timeout((MIPI_DSI_BASE + 0x0004),
-			   status,
-			   ((status & 0x02) == 0),
-			       sleep_us, timeout_us))
+	cnt = 16;
+	while (cnt--) {
+		status = MIPI_INP(MIPI_DSI_BASE + 0x0004);
+		status &= 0x02;		/* CMD_MODE_DMA_BUSY */
+		if (status == 0)
+			break;
+		usleep(1000);
+	}
+	if (cnt == 0)
 		pr_info("%s: DSI status=%x failed\n", __func__, status);
 
-	/* Check for x_HS_FIFO_EMPTY */
-	if (readl_poll_timeout((MIPI_DSI_BASE + 0x0008),
-			   status,
-			   ((status & 0x11111000) == 0x11111000),
-			       sleep_us, timeout_us))
+	cnt = 16;
+	while (cnt--) {
+		status = MIPI_INP(MIPI_DSI_BASE + 0x0008);
+		status &= 0x11111000;	/* x_HS_FIFO_EMPTY */
+		if (status == 0x11111000)	/* all empty */
+			break;
+		usleep(1000);
+	}
+
+	if (cnt == 0)
 		pr_info("%s: FIFO status=%x failed\n", __func__, status);
-
-	/* Check for VIDEO_MODE_ENGINE_BUSY */
-	if (readl_poll_timeout((MIPI_DSI_BASE + 0x0004),
-			   status,
-			   ((status & 0x08) == 0),
-			       sleep_us, timeout_us))
-		pr_info("%s: DSI status=%x failed\n", __func__, status);
 
 	dsi_ctrl = MIPI_INP(MIPI_DSI_BASE + 0x0000);
 	if (enable)
@@ -1164,10 +1159,19 @@ int mipi_dsi_cmds_tx(struct dsi_buf *tp, struct dsi_cmd_desc *cmds, int cnt)
 		mipi_dsi_enable_irq(DSI_CMD_TERM);
 		mipi_dsi_buf_init(tp);
 		mipi_dsi_cmd_dma_add(tp, cm);
+#if defined(CONFIG_MACH_LGE)
+		if (mipi_dsi_cmd_dma_tx(tp) == 0) 
+		{
+			printk(KERN_INFO "%s : mipi_dsi_cmd_dma_tx timeout!!! cm num = %d, cm payload = %s/n", __func__, i, cm->payload);
+			return -1;
+		}
+#else
 		mipi_dsi_cmd_dma_tx(tp);
+#endif
+
 		if (cm->wait)
 #ifdef CONFIG_MACH_LGE
-                     mdelay(cm->wait);
+			mdelay(cm->wait);
 #else
 			msleep(cm->wait);
 #endif
@@ -1511,17 +1515,21 @@ int mipi_dsi_cmd_dma_rx(struct dsi_buf *rp, int rlen)
 	return rlen;
 }
 
-static void mipi_dsi_video_wait_to_mdp_busy(void)
+static void mipi_dsi_wait_for_video_eng_busy(void)
 {
 	u32 status;
+	int sleep_us = 4000;
 
 	/*
 	 * if video mode engine was not busy (in BLLP)
 	 * wait to pass BLLP
 	 */
-	status = MIPI_INP(MIPI_DSI_BASE + 0x0004); /* DSI_STATUS */
-	if (!(status & 0x08)) /* VIDEO_MODE_ENGINE_BUSY */
-		usleep(4000);
+
+	/* check for VIDEO_MODE_ENGINE_BUSY */
+	readl_poll((MIPI_DSI_BASE + 0x0004), /* DSI_STATUS */
+				status,
+				(status & 0x08),
+				sleep_us);
 }
 
 void mipi_dsi_cmd_mdp_busy(void)
@@ -1545,39 +1553,6 @@ void mipi_dsi_cmd_mdp_busy(void)
 	pr_debug("%s: done pid=%d\n",
 				__func__, current->pid);
 }
-
-/*2012-10-17Case Number 00998634 */
-void mipi_dsi_cmd_mdp_busy_for_mipi_off(void) { 
-   u32 status;
-	unsigned long flags;
-	int need_wait;
-
-	spin_lock_irqsave(&dsi_mdp_lock, flags);
-	
-	status = MIPI_INP(MIPI_DSI_BASE + 0x0004);/* DSI_STATUS */
-	if (status & 0x04) {	/* MDP BUSY */ INIT_COMPLETION(dsi_mdp_comp);
-		need_wait = 1;
-		pr_debug("%s: status=%x need_wait\n", __func__, (int)status); 
-		mipi_dsi_enable_irq(DSI_MDP_TERM); 
-	}
-	
-	spin_unlock_irqrestore(&dsi_mdp_lock, flags);
-	
-	if (need_wait)
-	{
-		if (!wait_for_completion_timeout(&dsi_mdp_comp,
-								msecs_to_jiffies(VSYNC_PERIOD*3)))
-		{
-			spin_lock(&dsi_mdp_lock);
-			dsi_ctrl_lock = FALSE;
-			mipi_dsi_disable_irq_nosync(DSI_MDP_TERM);
-			complete(&dsi_mdp_comp);
-			dsi_mdp_busy = FALSE;
-			spin_unlock(&dsi_mdp_lock);		
-		}
-	}
-}
-
 
 /*
  * mipi_dsi_cmd_get: cmd_mutex acquired by caller
@@ -1634,7 +1609,6 @@ void mipi_dsi_cmdlist_commit(int from_mdp)
 {
 	struct dcs_cmd_req *req;
 	u32 dsi_ctrl;
-	int video;
 
 	mutex_lock(&cmd_mutex);
 	req = mipi_dsi_cmdlist_get();
@@ -1645,12 +1619,6 @@ void mipi_dsi_cmdlist_commit(int from_mdp)
 	if (req == NULL)
 		goto need_lock;
 
-	video = MIPI_INP(MIPI_DSI_BASE + 0x0000);
-	video &= 0x02; /* VIDEO_MODE */
-
-	if (!video)
-		mipi_dsi_clk_cfg(1);
-
 	pr_debug("%s:  from_mdp=%d pid=%d\n", __func__, from_mdp, current->pid);
 
 	dsi_ctrl = MIPI_INP(MIPI_DSI_BASE + 0x0000);
@@ -1658,7 +1626,7 @@ void mipi_dsi_cmdlist_commit(int from_mdp)
 		/* video mode, make sure dsi_cmd_mdp is busy
 		 * so dcs command will be txed at start of BLLP
 		 */
-		mipi_dsi_video_wait_to_mdp_busy();
+		mipi_dsi_wait_for_video_eng_busy();
 	} else {
 		/* command mode */
 		if (!from_mdp) { /* cmdlist_put */
@@ -1671,9 +1639,6 @@ void mipi_dsi_cmdlist_commit(int from_mdp)
 		mipi_dsi_cmdlist_rx(req);
 	else
 		mipi_dsi_cmdlist_tx(req);
-
-	if (!video)
-		mipi_dsi_clk_cfg(0);
 
 need_lock:
 
@@ -1708,8 +1673,14 @@ int mipi_dsi_cmdlist_put(struct dcs_cmd_req *cmdreq)
 	pr_debug("%s: tot=%d put=%d get=%d\n", __func__,
 		cmdlist.tot, cmdlist.put, cmdlist.get);
 
+	if (req->flags & CMD_CLK_CTRL)
+		mipi_dsi_clk_cfg(1);
+
 	if (req->flags & CMD_REQ_COMMIT)
 		mipi_dsi_cmdlist_commit(0);
+
+	if (req->flags & CMD_CLK_CTRL)
+		mipi_dsi_clk_cfg(0);
 
 	return ret;
 }

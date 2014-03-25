@@ -22,22 +22,14 @@
 
 static struct msm_panel_info pinfo;
 
-#if defined (CONFIG_MACH_MSM8960_D1LV)
-/* To be out from GSM band */
-#define DSI_BIT_CLK_482MHZ
-#else
 #define DSI_BIT_CLK_470MHZ
-#endif
+
 
 static struct mipi_dsi_phy_ctrl dsi_video_mode_phy_db = {
 	/* 720*1280, RGB888, 4 Lane 60 fps video mode */
 #if defined(DSI_BIT_CLK_470MHZ)
     /* regulator */
-#if defined(CONFIG_MACH_MSM8960_D1L_KR)
-	{0x05, 0x0a, 0x04, 0x00, 0x20},	/* DSI1_DSIPHY_REGULATOR_CTRL_0 :  0x1(0.415V) -> 0x11(0.385V) */
-#else
 	{0x03, 0x0a, 0x04, 0x00, 0x20},	/* Fixed values */
-#endif
 	/* timing */
 	{0x66, 0x26, 0x1E, 0x00, 0x21, 0x96, 0x1E, 0x8F,
 	0x21, 0x03, 0x04, 0xa0},
@@ -46,7 +38,7 @@ static struct mipi_dsi_phy_ctrl dsi_video_mode_phy_db = {
     /* strength */
 	{0xff, 0x00, 0x06, 0x00},	/* Fixed values */
 	/* pll control */
-	{0x00, 0xD4, 0x01, 0x1a, 0x00, 0x50, 0x48, 0x63,
+	{0x00, 0xD5, 0x01, 0x1a, 0x00, 0x50, 0x48, 0x63,
 	0x41, 0x0f, 0x03, 0x00, 0x14, 0x03, 0x00, 0x02,
 	0x00, 0x20, 0x00, 0x01 },
 #elif defined(DSI_BIT_CLK_482MHZ)
@@ -102,19 +94,20 @@ static int __init mipi_video_hitachi_hd_pt_init(void)
 	pinfo.lcdc.v_pulse_width = 1;
 #endif
 
+
+
 	pinfo.lcdc.border_clr = 0;	/* blk */
-	pinfo.lcdc.underflow_clr = 0xff;	/* blue */
+	pinfo.lcdc.underflow_clr = 0;   /* black */
 	pinfo.lcdc.hsync_skew = 0;
-	pinfo.bl_max = 0x7F;
+	pinfo.bl_max = 0xFF;
 	pinfo.bl_min = 0;
 	pinfo.fb_num = 2;
-	pinfo.lcd.blt_ctrl = BLT_SWITCH_TG_OFF;
 
 	pinfo.mipi.mode = DSI_VIDEO_MODE;
 	pinfo.mipi.pulse_mode_hsa_he = FALSE;
-	pinfo.mipi.hfp_power_stop = TRUE;
-	pinfo.mipi.hbp_power_stop = TRUE;
-	pinfo.mipi.hsa_power_stop = TRUE;
+	pinfo.mipi.hfp_power_stop = FALSE;//TRUE;
+	pinfo.mipi.hbp_power_stop = FALSE;//TRUE;
+	pinfo.mipi.hsa_power_stop = FALSE;//TRUE;
 	pinfo.mipi.eof_bllp_power_stop = TRUE;
 	pinfo.mipi.bllp_power_stop = TRUE;
 	pinfo.mipi.traffic_mode = DSI_NON_BURST_SYNCH_PULSE;
@@ -136,15 +129,14 @@ static int __init mipi_video_hitachi_hd_pt_init(void)
 	pinfo.clk_rate = 482180000;
 	pinfo.mipi.frame_rate = 60;
 #endif
-	pinfo.mipi.esc_byte_ratio = 4;
 
-
+        pinfo.mipi.esc_byte_ratio = 5; /* if bllp_power_stop is true, esc_clk enabling is needed. */
 	pinfo.mipi.stream = 0; /* dma_p */
 	pinfo.mipi.mdp_trigger = 0;/* DSI_CMD_TRIGGER_SW; */
 	pinfo.mipi.dma_trigger = DSI_CMD_TRIGGER_SW;
 	pinfo.mipi.dsi_phy_db = &dsi_video_mode_phy_db;
 	ret = mipi_hitachi_device_register(&pinfo, MIPI_DSI_PRIM,
-						MIPI_DSI_PANEL_WVGA_PT);
+						MIPI_DSI_PANEL_720P_PT);
 	if (ret)
 		printk(KERN_ERR "%s: failed to register device!\n", __func__);
 

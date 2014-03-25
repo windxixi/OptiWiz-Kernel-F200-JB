@@ -33,5 +33,7 @@
 
 int mipi_hitachi_device_register(struct msm_panel_info *pinfo,
 					u32 channel, u32 panel);
-
+int mipi_hitachi_lcd_on(struct platform_device *pdev);
+int mipi_hitachi_lcd_off(struct platform_device *pdev);
+int mipi_hitachi_lcd_off_for_shutdown(void);
 #endif  /* MIPI_HITACHI_H */

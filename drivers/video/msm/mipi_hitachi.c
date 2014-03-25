@@ -31,9 +31,9 @@ static struct msm_panel_common_pdata *mipi_hitachi_pdata;
 static struct dsi_buf hitachi_tx_buf;
 static struct dsi_buf hitachi_rx_buf;
 
-#ifdef CONFIG_LGE_ESD_CHECK
 struct msm_fb_data_type *local_mfd=NULL;
 
+#ifdef CONFIG_LGE_ESD_CHECK
 static char reg_adr[2] = {0x0C, 0x00};
 int reg_size = 1;
 
@@ -53,9 +53,11 @@ static struct dsi_cmd_desc cmds_macp_on =
  * in mipi_hitachi_lcd_on and mipi_hitachi_lcd_off.
  * minjong.gong@lge.com, 2011-07-19
  */
-static int mipi_hitachi_lcd_on(struct platform_device *pdev)
+int mipi_hitachi_lcd_on(struct platform_device *pdev)
 {
 	struct msm_fb_data_type *mfd;
+	int cnt = 0;
+
 	mfd = platform_get_drvdata(pdev);
 	if (!mfd)
 		return -ENODEV;
@@ -63,19 +65,26 @@ static int mipi_hitachi_lcd_on(struct platform_device *pdev)
 		return -EINVAL;
 
 	printk(KERN_INFO "%s: mipi hitachi lcd on started \n", __func__);
-	mipi_dsi_cmds_tx(&hitachi_tx_buf, mipi_hitachi_pdata->power_on_set,
-			mipi_hitachi_pdata->power_on_set_size);
-
-#ifdef CONFIG_LGE_ESD_CHECK
+	MIPI_OUTP(MIPI_DSI_BASE + 0x38, 0x10000000);//HS mode
+	cnt = mipi_dsi_cmds_tx(&hitachi_tx_buf, mipi_hitachi_pdata->power_on_set_1,
+			mipi_hitachi_pdata->power_on_set_size_1);
+	MIPI_OUTP(MIPI_DSI_BASE + 0x38, 0x14000000);//LP mode
+	
 	if(local_mfd==NULL)
 		local_mfd = mfd;
-#endif /* CONFIG_LGE_ESD_CHECK */
-	return 0;
+	printk(KERN_INFO "%s: mipi hitachi lcd on end \n", __func__);
+
+	if (cnt > 0)
+		cnt = 0;
+
+	return cnt;
 }
 
-static int mipi_hitachi_lcd_off(struct platform_device *pdev)
+int mipi_hitachi_lcd_off(struct platform_device *pdev)
 {
 	struct msm_fb_data_type *mfd;
+	int cnt = 0;
+
 	mfd = platform_get_drvdata(pdev);
 	if (!mfd)
 		return -ENODEV;
@@ -83,9 +92,29 @@ static int mipi_hitachi_lcd_off(struct platform_device *pdev)
 		return -EINVAL;
 
 	printk(KERN_INFO "%s: mipi hitachi lcd off started \n", __func__);
-	mipi_dsi_cmds_tx(&hitachi_tx_buf,
-			mipi_hitachi_pdata->power_off_set,
-			mipi_hitachi_pdata->power_off_set_size);
+	MIPI_OUTP(MIPI_DSI_BASE + 0x38, 0x10000000);//HS mode
+	cnt = mipi_dsi_cmds_tx(&hitachi_tx_buf,
+			mipi_hitachi_pdata->power_off_set_1,
+			mipi_hitachi_pdata->power_off_set_size_1);
+	MIPI_OUTP(MIPI_DSI_BASE + 0x38, 0x14000000);//LP mode
+	printk(KERN_INFO "%s: mipi hitachi lcd off end \n", __func__);
+
+	if (cnt > 0)
+		cnt = 0;
+
+	return cnt;
+}
+int mipi_hitachi_lcd_off_for_shutdown(void)
+{
+	int cnt = 0;
+
+	printk(KERN_INFO "%s: mipi hitachi lcd off started \n", __func__);
+	MIPI_OUTP(MIPI_DSI_BASE + 0x38, 0x10000000);//HS mode
+	cnt = mipi_dsi_cmds_tx(&hitachi_tx_buf,
+		mipi_hitachi_pdata->power_off_set_1,
+		mipi_hitachi_pdata->power_off_set_size_1);
+	MIPI_OUTP(MIPI_DSI_BASE + 0x38, 0x14000000);//LP mode
+
 	return 0;
 }
 
@@ -235,7 +264,7 @@ static int mipi_hitachi_lcd_probe(struct platform_device *pdev)
 	if (!pdata)
 		return 0;
 
-	pdata->panel_info.bl_max = mipi_hitachi_pdata->max_backlight_level;
+	//pdata->panel_info.bl_max = mipi_hitachi_pdata->max_backlight_level;
 
 	msm_fb_add_device(pdev);
 
@@ -329,14 +358,13 @@ int mipi_hitachi_device_register(struct msm_panel_info *pinfo,
 #if defined (CONFIG_LGE_BACKLIGHT_CABC) &&\
 		defined (CONFIG_LGE_BACKLIGHT_CABC_DEBUG)
 	ret = device_create_file(&pdev->dev, &dev_attr_hitachi_cabc);
-#endif
 
 	if (ret) {
 		printk(KERN_ERR
 		  "%s: device_create_file failed!\n", __func__);
 		goto err_device_put;
 	}
-
+#endif
 	return 0;
 
 err_device_put:

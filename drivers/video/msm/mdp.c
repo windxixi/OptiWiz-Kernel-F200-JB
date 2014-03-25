@@ -54,7 +54,7 @@ static struct clk *mdp_pclk;
 static struct clk *mdp_lut_clk;
 int mdp_rev;
 int mdp_iommu_split_domain;
-u32 mdp_max_clk = 200000000;
+u32 mdp_max_clk = 266667000;
 
 static struct platform_device *mdp_init_pdev;
 static struct regulator *footswitch, *dsi_pll_vdda, *dsi_pll_vddio;
@@ -2646,6 +2646,55 @@ static int mdp_probe(struct platform_device *pdev)
 		rc = -ENOMEM;
 		goto mdp_probe_err;
 	}
+
+	if (mdp_pdata) {
+#if 0 //FIXME block to build error
+		if (mdp_pdata->cont_splash_enabled &&
+				 mfd->panel_info.pdest == DISPLAY_1) {
+			char *cp;
+			uint32 bpp = 3;
+			/*read panel wxh and calculate splash screen
+			  size*/
+			mdp_pipe_ctrl(MDP_CMD_BLOCK, MDP_BLOCK_POWER_ON, FALSE);
+
+			mdp_pdata->splash_screen_size =
+				inpdw(MDP_BASE + 0x90004);
+			mdp_pdata->splash_screen_size =
+				(((mdp_pdata->splash_screen_size >> 16) &
+				  0x00000FFF) * (
+					  mdp_pdata->splash_screen_size &
+					  0x00000FFF)) * bpp;
+
+			mdp_pdata->splash_screen_addr =
+				inpdw(MDP_BASE + 0x90008);
+
+			mfd->copy_splash_buf = dma_alloc_coherent(NULL,
+					mdp_pdata->splash_screen_size,
+					(dma_addr_t *) &(mfd->copy_splash_phys),
+					GFP_KERNEL);
+
+			if (!mfd->copy_splash_buf) {
+				pr_err("DMA ALLOC FAILED for SPLASH\n");
+				return -ENOMEM;
+			}
+			cp = (char *)ioremap(
+					mdp_pdata->splash_screen_addr,
+					mdp_pdata->splash_screen_size);
+			if (!cp) {
+				pr_err("IOREMAP FAILED for SPLASH\n");
+				return -ENOMEM;
+			}
+			memcpy(mfd->copy_splash_buf, cp,
+					mdp_pdata->splash_screen_size);
+
+			MDP_OUTP(MDP_BASE + 0x90008,
+					mfd->copy_splash_phys);
+		}
+#endif
+
+		mfd->cont_splash_done = (1 - mdp_pdata->cont_splash_enabled);
+	}
+
 	/* data chain */
 	pdata = msm_fb_dev->dev.platform_data;
 	pdata->on = mdp_on;

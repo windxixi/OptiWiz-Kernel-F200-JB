@@ -57,7 +57,6 @@ static struct vsycn_ctrl {
 	int wait_vsync_cnt;
 	int blt_change;
 	int blt_free;
-	int sysfs_created;
 	struct mutex update_lock;
 	struct completion ov_comp;
 	struct completion dmap_comp;
@@ -171,6 +170,8 @@ int mdp4_lcdc_pipe_commit(int cndx, int wait)
 	vp = &vctrl->vlist[undx];
 	pipe = vctrl->base_pipe;
 	mixer = pipe->mixer_num;
+
+	mdp_update_pm(vctrl->mfd, vctrl->vsync_time);
 
 	if (vp->update_cnt == 0) {
 		mutex_unlock(&vctrl->update_lock);
@@ -648,6 +649,7 @@ int mdp4_lcdc_on(struct platform_device *pdev)
 	mdp_pipe_ctrl(MDP_CMD_BLOCK, MDP_BLOCK_POWER_OFF, FALSE);
 
 	mdp_histogram_ctrl_all(TRUE);
+	mdp4_overlay_lcdc_start();
 
 	return ret;
 }
@@ -672,7 +674,10 @@ int mdp4_lcdc_off(struct platform_device *pdev)
 
 	msleep(20);	/* >= 17 ms */
 
-	complete_all(&vctrl->vsync_comp);
+	if (vctrl->wait_vsync_cnt) {
+		complete_all(&vctrl->vsync_comp);
+		vctrl->wait_vsync_cnt = 0;
+	}
 
 	if (pipe->ov_blt_addr) {
 		spin_lock_irqsave(&vctrl->spin_lock, flags);
@@ -967,7 +972,8 @@ void mdp4_lcdc_overlay(struct msm_fb_data_type *mfd)
 
 	cnt = 0;
 	mutex_lock(&mfd->dma->ov_mutex);
-	cnt = mdp4_lcdc_pipe_commit(cndx, 0);
+	cnt = mdp4_lcdc_pipe_commit(cndx,0);
+	mutex_unlock(&mfd->dma->ov_mutex);
 
 	if (cnt) {
 		if (pipe->ov_blt_addr)
@@ -977,5 +983,4 @@ void mdp4_lcdc_overlay(struct msm_fb_data_type *mfd)
 	}
 
 	mdp4_overlay_mdp_perf_upd(mfd, 0);
-	mutex_unlock(&mfd->dma->ov_mutex);
 }
