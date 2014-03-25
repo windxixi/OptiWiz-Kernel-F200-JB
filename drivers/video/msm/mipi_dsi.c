@@ -269,6 +269,15 @@ static int mipi_dsi_on(struct platform_device *pdev)
 		u32 tmp;
 
 		tmp = MIPI_INP(MIPI_DSI_BASE + 0xA8);
+#ifdef CONFIG_FB_MSM_MIPI_LGIT_VIDEO_HD_PT
+
+		/* LGE_CHANGE_S jaehyun.lee  for LCD power sequence*/
+		tmp |= (1<<20); 
+		MIPI_OUTP(MIPI_DSI_BASE + 0xA8, tmp);
+		mdelay(1);
+		tmp &= ~(1<<20);
+		/* LGE_CHANGE_E*/
+#endif 
 		tmp |= (1<<28);
 		MIPI_OUTP(MIPI_DSI_BASE + 0xA8, tmp);
 		wmb();
