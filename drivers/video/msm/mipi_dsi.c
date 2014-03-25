@@ -104,6 +104,7 @@ static int mipi_dsi_off(struct platform_device *pdev)
 	mipi_dsi_op_mode_config(DSI_CMD_MODE);
 #endif
 #endif
+	mipi_dsi_op_mode_config(DSI_CMD_MODE);
 
 	if (mfd->panel_info.type == MIPI_CMD_PANEL) {
 		if (pinfo->lcd.vsync_enable) {
@@ -123,6 +124,7 @@ static int mipi_dsi_off(struct platform_device *pdev)
 	ret = panel_next_off(pdev);
 #endif
 #endif
+	ret = panel_next_off(pdev);
 
 #ifdef CONFIG_MSM_BUS_SCALING
 	mdp_bus_scale_update_request(0);
@@ -269,15 +271,6 @@ static int mipi_dsi_on(struct platform_device *pdev)
 		u32 tmp;
 
 		tmp = MIPI_INP(MIPI_DSI_BASE + 0xA8);
-#ifdef CONFIG_FB_MSM_MIPI_LGIT_VIDEO_HD_PT
-
-		/* LGE_CHANGE_S jaehyun.lee  for LCD power sequence*/
-		tmp |= (1<<20); 
-		MIPI_OUTP(MIPI_DSI_BASE + 0xA8, tmp);
-		mdelay(1);
-		tmp &= ~(1<<20);
-		/* LGE_CHANGE_E*/
-#endif 
 		tmp |= (1<<28);
 		MIPI_OUTP(MIPI_DSI_BASE + 0xA8, tmp);
 		wmb();
@@ -308,6 +301,7 @@ static int mipi_dsi_on(struct platform_device *pdev)
 	#if defined(CONFIG_FB_MSM_MIPI_HITACHI_VIDEO_HD_PT) || defined(CONFIG_FB_MSM_MIPI_DSI_LGIT_FHD)
 	mipi_dsi_op_mode_config(mipi->mode);
 	#endif
+	mipi_dsi_op_mode_config(mipi->mode);
 #else
 	if (mfd->op_enable)
 		ret = panel_next_on(pdev);
