@@ -1035,7 +1035,7 @@ static int msm_fb_blank_sub(int blank_mode, struct fb_info *info,
 	struct msm_fb_panel_data *pdata = NULL;
 	int ret = 0;
 
-#if defined(CONFIG_MACH_LGE)
+#if !defined(CONFIG_MACH_LGE)
 	int retry_cnt = 0;
 #endif
 
@@ -1053,7 +1053,7 @@ static int msm_fb_blank_sub(int blank_mode, struct fb_info *info,
 		if (!mfd->panel_power_on) {
 			msleep(16);
 
-#if defined(CONFIG_MACH_LGE)
+#if !defined(CONFIG_MACH_LGE)
 			if (mfd->index == 0)
 			{
 				do
@@ -1109,7 +1109,7 @@ static int msm_fb_blank_sub(int blank_mode, struct fb_info *info,
 			// (QCT SR no. 00892553)
 			memset((void *)info->screen_base, 0x00, info->fix.smem_len);
 
-			msleep(20); // It was msleep(16);
+			msleep(16*4); // It was msleep(16);
 
 			ret = pdata->off(mfd->pdev);
 			if (ret)
