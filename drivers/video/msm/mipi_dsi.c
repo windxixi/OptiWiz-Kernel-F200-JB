@@ -130,6 +130,7 @@ static int mipi_dsi_off(struct platform_device *pdev)
 	mdp_bus_scale_update_request(0);
 #endif
 
+	spin_lock_bh(&dsi_clk_lock);
 	mipi_dsi_clk_disable();
 
 	/* disbale dsi engine */
@@ -138,6 +139,7 @@ static int mipi_dsi_off(struct platform_device *pdev)
 	mipi_dsi_phy_ctrl(0);
 
 	mipi_dsi_ahb_ctrl(0);
+	spin_unlock_bh(&dsi_clk_lock);
 
 	mipi_dsi_unprepare_clocks();
 	if (mipi_dsi_pdata && mipi_dsi_pdata->dsi_power_save)
@@ -731,6 +733,7 @@ static int mipi_dsi_probe(struct platform_device *pdev)
 
 		if (mipi_dsi_pdata->splash_is_enabled &&
 			!mipi_dsi_pdata->splash_is_enabled()) {
+			mipi_dsi_prepare_clocks();
 			mipi_dsi_ahb_ctrl(1);
 			MIPI_OUTP(MIPI_DSI_BASE + 0x118, 0);
 			MIPI_OUTP(MIPI_DSI_BASE + 0x0, 0);
@@ -755,6 +758,8 @@ static int mipi_dsi_probe(struct platform_device *pdev)
 
 	if (pdev_list_cnt >= MSM_FB_MAX_DEV_LIST)
 		return -ENOMEM;
+	if (!mfd->cont_splash_done)
+		cont_splash_clk_ctrl(1);
 
 	mdp_dev = platform_device_alloc("mdp", pdev->id);
 	if (!mdp_dev)
@@ -873,7 +878,7 @@ static int mipi_dsi_probe(struct platform_device *pdev)
 	if (rc)
 		goto mipi_dsi_probe_err;
 
-	if ((dsi_pclk_rate < 3300000) || (dsi_pclk_rate > 223000000)) {
+	if ((dsi_pclk_rate < 3300000) || (dsi_pclk_rate > 103300000)) {
 		pr_err("%s: Pixel clock not supported\n", __func__);
 		dsi_pclk_rate = 35000000;
 	}
