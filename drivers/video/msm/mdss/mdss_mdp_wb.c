@@ -18,6 +18,10 @@
 #include <linux/major.h>
 #include <linux/module.h>
 #include <linux/uaccess.h>
+#include <linux/iommu.h>
+
+#include <mach/iommu.h>
+#include <mach/iommu_domains.h>
 
 #include "mdss_mdp.h"
 #include "mdss_fb.h"
@@ -60,32 +64,53 @@ static DEFINE_MUTEX(mdss_mdp_wb_buf_lock);
 static struct mdss_mdp_wb mdss_mdp_wb_info;
 
 #ifdef DEBUG_WRITEBACK
-/* for debugging: writeback output buffer to framebuffer memory */
+/* for debugging: writeback output buffer to allocated memory */
 static inline
 struct mdss_mdp_data *mdss_mdp_wb_debug_buffer(struct msm_fb_data_type *mfd)
 {
+	static struct ion_handle *ihdl;
 	static void *videomemory;
-	static void *mdss_wb_mem;
-	static struct mdss_mdp_data buffer = {
-		.num_planes = 1,
-	};
+	static ion_phys_addr_t mdss_wb_mem;
+	static struct mdss_mdp_data mdss_wb_buffer = { .num_planes = 1, };
+	int rc;
 
-	struct fb_info *fbi;
-	int img_size;
-	int offset;
+	if (IS_ERR_OR_NULL(ihdl)) {
+		struct fb_info *fbi;
+		size_t img_size;
+		struct ion_client *iclient = mdss_get_ionclient();
+		struct mdss_mdp_img_data *img = mdss_wb_buffer.p;
+
+		fbi = mfd->fbi;
+		img_size = fbi->var.xres * fbi->var.yres *
+			fbi->var.bits_per_pixel / 8;
 
 
-	fbi = mfd->fbi;
-	img_size = fbi->var.xres * fbi->var.yres * fbi->var.bits_per_pixel / 8;
-	offset = fbi->fix.smem_len - img_size;
+		ihdl = ion_alloc(iclient, img_size, SZ_4K,
+				 ION_HEAP(ION_SF_HEAP_ID));
+		if (IS_ERR_OR_NULL(ihdl)) {
+			pr_err("unable to alloc fbmem from ion (%p)\n", ihdl);
+			return NULL;
+		}
 
-	videomemory = fbi->screen_base + offset;
-	mdss_wb_mem = (void *)(fbi->fix.smem_start + offset);
+		videomemory = ion_map_kernel(iclient, ihdl, 0);
+		ion_phys(iclient, ihdl, &mdss_wb_mem, &img_size);
 
-	buffer.p[0].addr = fbi->fix.smem_start + offset;
-	buffer.p[0].len = img_size;
+		if (is_mdss_iommu_attached()) {
+			rc = ion_map_iommu(iclient, ihdl,
+					   mdss_get_iommu_domain(),
+					   0, SZ_4K, 0,
+					   (unsigned long *) &img->addr,
+					   (unsigned long *) &img->len,
+					   0, 0);
+		} else {
+			img->addr = mdss_wb_mem;
+			img->len = img_size;
+		}
 
-	return &buffer;
+		pr_debug("ihdl=%p virt=%p phys=0x%lx iova=0x%x size=%u\n",
+			 ihdl, videomemory, mdss_wb_mem, img->addr, img_size);
+	}
+	return &mdss_wb_buffer;
 }
 #else
 static inline
@@ -227,6 +252,7 @@ static struct mdss_mdp_wb_data *get_local_node(struct mdss_mdp_wb *wb,
 	}
 
 	node->buf_data.num_planes = 1;
+	node->buf_info = *data;
 	buf = &node->buf_data.p[0];
 	buf->addr = (u32) (data->iova + data->offset);
 	buf->len = UINT_MAX; /* trusted source */
@@ -257,7 +283,7 @@ static struct mdss_mdp_wb_data *get_user_node(struct msm_fb_data_type *mfd,
 
 	node->buf_data.num_planes = 1;
 	buf = &node->buf_data.p[0];
-	ret = mdss_mdp_get_img(mfd->iclient, data, buf);
+	ret = mdss_mdp_get_img(data, buf);
 	if (IS_ERR_VALUE(ret)) {
 		pr_err("error getting buffer info\n");
 		goto register_fail;
@@ -384,6 +410,9 @@ int mdss_mdp_wb_kickoff(struct mdss_mdp_ctl *ctl)
 
 	if (!ctl || !ctl->mfd)
 		return -ENODEV;
+
+	if (!ctl->power_on)
+		return 0;
 
 	mutex_lock(&mdss_mdp_wb_buf_lock);
 	wb = ctl->mfd->wb;
@@ -537,3 +566,9 @@ int msm_fb_writeback_terminate(struct fb_info *info)
 	return mdss_mdp_wb_terminate(mfd);
 }
 EXPORT_SYMBOL(msm_fb_writeback_terminate);
+
+int msm_fb_get_iommu_domain(void)
+{
+	return mdss_get_iommu_domain();
+}
+EXPORT_SYMBOL(msm_fb_get_iommu_domain);
