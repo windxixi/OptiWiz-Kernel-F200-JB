@@ -190,7 +190,21 @@ static int mipi_dsi_on(struct platform_device *pdev)
 	clk_rate = mfd->fbi->var.pixclock;
 	clk_rate = min(clk_rate, mfd->panel_info.clk_max);
 
+#if defined(CONFIG_MACH_MSM8960_L1v)
+		/*
+	 * Fix kernel boot logo is not displayed.
+	 * 2012-01-04, kyunghoo.ryu@lge.com
+	 */
+	 if(system_state == SYSTEM_BOOTING) {
+		mipi_dsi_phy_ctrl(0);
+		mdelay(1);
+		mipi_dsi_phy_ctrl(1);
+	 } else {
 	mipi_dsi_phy_ctrl(1);
+	 }
+#else
+		mipi_dsi_phy_ctrl(1);
+#endif
 
 	if (mdp_rev == MDP_REV_42 && mipi_dsi_pdata)
 		target_type = mipi_dsi_pdata->target_type;
@@ -309,10 +323,10 @@ static int mipi_dsi_on(struct platform_device *pdev)
 	} else {
 		ret = 0;
 	}
-	#if defined(CONFIG_FB_MSM_MIPI_HITACHI_VIDEO_HD_PT) || defined(CONFIG_FB_MSM_MIPI_DSI_LGIT_FHD)
+#if !defined(CONFIG_FB_MSM_MIPI_LGIT_LH470WX1_VIDEO_HD_PT)
 	mipi_dsi_op_mode_config(mipi->mode);
-	#endif
-	mipi_dsi_op_mode_config(mipi->mode);
+#endif
+
 #else
 	if (mfd->op_enable)
 		ret = panel_next_on(pdev);
