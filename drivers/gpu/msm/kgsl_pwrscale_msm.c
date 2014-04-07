@@ -17,6 +17,7 @@
 #include "kgsl_pwrscale.h"
 #include "kgsl_device.h"
 #include "a2xx_reg.h"
+#include "kgsl_trace.h"
 
 struct msm_priv {
 	struct kgsl_device *device;
@@ -26,6 +27,7 @@ struct msm_priv {
 	struct msm_dcvs_idle idle_source;
 	struct msm_dcvs_freq freq_sink;
 	struct msm_dcvs_core_info *core_info;
+	int gpu_busy;
 };
 
 static int msm_idle_enable(struct msm_dcvs_idle *self,
@@ -89,29 +91,62 @@ static void msm_busy(struct kgsl_device *device,
 			struct kgsl_pwrscale *pwrscale)
 {
 	struct msm_priv *priv = pwrscale->priv;
-	if (priv->enabled)
+	if (priv->enabled && !priv->gpu_busy) {
 		msm_dcvs_idle(priv->handle, MSM_DCVS_IDLE_EXIT, 0);
+		trace_kgsl_mpdcvs(device, 1);
+		priv->gpu_busy = 1;
+	}
 	return;
 }
 
 static void msm_idle(struct kgsl_device *device,
-			struct kgsl_pwrscale *pwrscale)
+		struct kgsl_pwrscale *pwrscale, unsigned int ignore_idle)
 {
 	struct msm_priv *priv = pwrscale->priv;
-	unsigned int rb_rptr, rb_wptr;
-	kgsl_regread(device, REG_CP_RB_RPTR, &rb_rptr);
-	kgsl_regread(device, REG_CP_RB_WPTR, &rb_wptr);
 
-	if (priv->enabled && (rb_rptr == rb_wptr))
-		msm_dcvs_idle(priv->handle, MSM_DCVS_IDLE_ENTER, 0);
-
+	if (priv->enabled && priv->gpu_busy)
+		if (device->ftbl->isidle(device)) {
+			msm_dcvs_idle(priv->handle, MSM_DCVS_IDLE_ENTER, 0);
+			trace_kgsl_mpdcvs(device, 0);
+			priv->gpu_busy = 0;
+		}
 	return;
 }
 
 static void msm_sleep(struct kgsl_device *device,
 			struct kgsl_pwrscale *pwrscale)
 {
-	/* do we need to reset any parameters here? */
+	struct msm_priv *priv = pwrscale->priv;
+
+	if (priv->enabled && priv->gpu_busy) {
+		msm_dcvs_idle(priv->handle, MSM_DCVS_IDLE_ENTER, 0);
+		trace_kgsl_mpdcvs(device, 0);
+		priv->gpu_busy = 0;
+	}
+
+	return;
+}
+
+static void msm_remove_io_fraction(struct kgsl_device *device)
+{
+	int i;
+	struct kgsl_pwrctrl *pwr = &device->pwrctrl;
+
+	for (i = 0; i < pwr->num_pwrlevels; i++)
+		pwr->pwrlevels[i].io_fraction = 100;
+
+}
+
+static void msm_restore_io_fraction(struct kgsl_device *device)
+{
+	int i;
+	struct kgsl_device_platform_data *pdata =
+				kgsl_device_get_drvdata(device);
+	struct kgsl_pwrctrl *pwr = &device->pwrctrl;
+
+	for (i = 0; i < pdata->num_levels; i++)
+		pwr->pwrlevels[i].io_fraction =
+			pdata->pwrlevel[i].io_fraction;
 }
 
 static int msm_init(struct kgsl_device *device,
@@ -159,11 +194,12 @@ static int msm_init(struct kgsl_device *device,
 	ret = msm_dcvs_freq_sink_register(&priv->freq_sink);
 	if (ret >= 0) {
 		if (device->ftbl->isidle(device)) {
-			device->pwrscale.gpu_busy = 0;
+			priv->gpu_busy = 0;
 			msm_dcvs_idle(priv->handle, MSM_DCVS_IDLE_ENTER, 0);
 		} else {
-			device->pwrscale.gpu_busy = 1;
+			priv->gpu_busy = 1;
 		}
+		msm_remove_io_fraction(device);
 		return 0;
 	}
 
@@ -188,6 +224,7 @@ static void msm_close(struct kgsl_device *device,
 	msm_dcvs_freq_sink_unregister(&priv->freq_sink);
 	kfree(pwrscale->priv);
 	pwrscale->priv = NULL;
+	msm_restore_io_fraction(device);
 }
 
 struct kgsl_pwrscale_policy kgsl_pwrscale_policy_msm = {

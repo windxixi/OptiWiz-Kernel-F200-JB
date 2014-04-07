@@ -75,11 +75,8 @@ static int ion_iommu_heap_allocate(struct ion_heap *heap,
 			goto err2;
 
 		for_each_sg(table->sgl, sg, table->nents, i) {
-#if defined (CONFIG_MACH_MSM8960_L1m)
-			data->pages[i] = alloc_page(GFP_KERNEL | __GFP_ZERO | __GFP_HIGHMEM ); // add flag for allcation at HIGHMEM+NORMAL
-#else
-			data->pages[i] = alloc_page(GFP_KERNEL | __GFP_ZERO);
-#endif
+//			data->pages[i] = alloc_page(GFP_KERNEL | __GFP_ZERO);
+			data->pages[i] = alloc_page(GFP_KERNEL | __GFP_ZERO | __GFP_HIGHMEM);
 			if (!data->pages[i])
 				goto err3;
 

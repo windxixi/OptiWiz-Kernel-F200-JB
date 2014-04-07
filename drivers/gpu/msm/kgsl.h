@@ -23,6 +23,8 @@
 #include <linux/regulator/consumer.h>
 #include <linux/mm.h>
 
+#include <mach/kgsl.h>
+
 #define KGSL_NAME "kgsl"
 
 /* The number of memstore arrays limits the number of contexts allowed.
@@ -171,9 +173,10 @@ struct kgsl_mem_entry {
 #endif
 
 void kgsl_mem_entry_destroy(struct kref *kref);
+int kgsl_postmortem_dump(struct kgsl_device *device, int manual);
 
-struct kgsl_mem_entry *kgsl_get_mem_entry(unsigned int ptbase,
-		unsigned int gpuaddr, unsigned int size);
+struct kgsl_mem_entry *kgsl_get_mem_entry(struct kgsl_device *device,
+		unsigned int ptbase, unsigned int gpuaddr, unsigned int size);
 
 struct kgsl_mem_entry *kgsl_sharedmem_find_region(
 	struct kgsl_process_private *private, unsigned int gpuaddr,
