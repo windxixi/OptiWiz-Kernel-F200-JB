@@ -103,22 +103,6 @@ static void vsync_irq_disable(int intr, int term)
 	pr_debug("%s: IRQ-dis done, term=%x\n", __func__, term);
 }
 
-#if defined(CONFIG_FB_MSM_MIPI_LGIT_VIDEO_WXGA_PT) \
-	|| defined(CONFIG_FB_MSM_MIPI_LGIT_VIDEO_FHD_INVERSE_PT) \
-       || defined(CONFIG_FB_MSM_MIPI_LGIT_VIDEO_FHD_INVERSE_PT_PANEL)
-void mdp4_overlay_dsi_video_start(void)
-#else
-static void mdp4_overlay_dsi_video_start(void)
-#endif
-{
-	if (!dsi_video_enabled) {
-		/* enable DSI block */
-		mdp4_iommu_attach();
-		mdp_pipe_ctrl(MDP_OVERLAY0_BLOCK, MDP_BLOCK_POWER_ON, FALSE);
-		MDP_OUTP(MDP_BASE + DSI_VIDEO_BASE, 1);
-		dsi_video_enabled = 1;
-	}
-}
 
 /*
  * mdp4_dsi_video_pipe_queue:
@@ -704,13 +688,13 @@ int mdp4_dsi_video_on(struct platform_device *pdev)
 
 	mdp_histogram_ctrl_all(TRUE);
 
-#if defined(CONFIG_FB_MSM_MIPI_LGIT_VIDEO_WXGA_PT) \
-    || defined(CONFIG_FB_MSM_MIPI_LGIT_VIDEO_FHD_INVERSE_PT) \
-    || defined(CONFIG_FB_MSM_MIPI_LGIT_VIDEO_FHD_INVERSE_PT_PANEL)
+//#if defined(CONFIG_FB_MSM_MIPI_LGIT_VIDEO_WXGA_PT) 
+//    || defined(CONFIG_FB_MSM_MIPI_LGIT_VIDEO_FHD_INVERSE_PT) 
+//    || defined(CONFIG_FB_MSM_MIPI_LGIT_VIDEO_FHD_INVERSE_PT_PANEL)
 //    mdp4_overlay_dsi_video_start();//remove set other position in this file
-#else
-    mdp4_overlay_dsi_video_start();
-#endif
+//#else
+  //  mdp4_overlay_dsi_video_start();
+//#endif
 
 	return ret;
 }
