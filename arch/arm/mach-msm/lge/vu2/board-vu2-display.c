@@ -1046,7 +1046,7 @@ static struct msm_panel_common_pdata mdp_pdata = {
 #else
 	.cont_splash_enabled = 0x01,
 #endif
-	.mdp_iommu_split_domain = 0,
+	.mdp_iommu_split_domain = 1,
 };
 
 void __init msm8960_mdp_writeback(struct memtype_reserve* reserve_table)
