@@ -30,7 +30,7 @@
 #include <linux/spi/spi.h>
 #include <linux/slimbus/slimbus.h>
 #include <linux/bootmem.h>
-#include <linux/msm_kgsl.h>
+#include <mach/kgsl.h>
 #ifdef CONFIG_ANDROID_PMEM
 #include <linux/android_pmem.h>
 #endif
@@ -3107,14 +3107,40 @@ static void __init msm8960_i2c_init(void)
 
 static void __init msm8960_gfx_init(void)
 {
+	struct kgsl_device_platform_data *kgsl_3d0_pdata =
+		msm_kgsl_3d0.dev.platform_data;
 	uint32_t soc_platform_version = socinfo_get_version();
-	if (SOCINFO_VERSION_MAJOR(soc_platform_version) == 1) {
-		struct kgsl_device_platform_data *kgsl_3d0_pdata =
-				msm_kgsl_3d0.dev.platform_data;
-		kgsl_3d0_pdata->pwrlevel[0].gpu_freq = 320000000;
-		kgsl_3d0_pdata->pwrlevel[1].gpu_freq = 266667000;
+
+	/* Fixup data that needs to change based on GPU ID */
+	if (cpu_is_msm8960ab()) {
+		kgsl_3d0_pdata->chipid = ADRENO_CHIPID(3, 2, 1, 0);
+		/* 8960PRO nominal clock rate is 320Mhz */
+		kgsl_3d0_pdata->pwrlevel[1].gpu_freq = 320000000;
+	} else {
+		kgsl_3d0_pdata->iommu_count = 1;
+		if (SOCINFO_VERSION_MAJOR(soc_platform_version) == 1) {
+			kgsl_3d0_pdata->pwrlevel[0].gpu_freq = 320000000;
+			kgsl_3d0_pdata->pwrlevel[1].gpu_freq = 266667000;
+		}
+		if (SOCINFO_VERSION_MAJOR(soc_platform_version) >= 3) {
+			/* 8960v3 GPU registers returns 5 for patch release
+			 * but it should be 6, so dummy up the chipid here
+			 * based the platform type
+			 */
+			kgsl_3d0_pdata->chipid = ADRENO_CHIPID(2, 2, 0, 6);
+		}
+	}
+
+	/* Register the 3D core */
+	platform_device_register(&msm_kgsl_3d0);
+
+	/* Register the 2D cores if we are not 8960PRO */
+	if (!cpu_is_msm8960ab()) {
+		platform_device_register(&msm_kgsl_2d0);
+		platform_device_register(&msm_kgsl_2d1);
 	}
 }
+
 
 static struct msm_rpmrs_level msm_rpmrs_levels[] = {
 	{
