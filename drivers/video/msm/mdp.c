@@ -1631,7 +1631,6 @@ void mdp_pipe_kickoff(uint32 term, struct msm_fb_data_type *mfd)
 		outpdw(MDP_BASE + 0x0014, 0x0);	/* start DMA */
 	} else if (term == MDP_OVERLAY0_TERM) {
 		mdp_pipe_ctrl(MDP_OVERLAY0_BLOCK, MDP_BLOCK_POWER_ON, FALSE);
-		mdp_lut_enable();
 		outpdw(MDP_BASE + 0x0004, 0);
 	} else if (term == MDP_OVERLAY1_TERM) {
 		mdp_pipe_ctrl(MDP_OVERLAY1_BLOCK, MDP_BLOCK_POWER_ON, FALSE);
@@ -2581,22 +2580,8 @@ static int mdp_probe(struct platform_device *pdev)
 
 		/* initializing mdp hw */
 #ifdef CONFIG_FB_MSM_MDP40
-                 if (!(mdp_pdata->cont_splash_enabled)) {
-                         if (mdp_rev == MDP_REV_42) {
-                                 mdp_pipe_ctrl(MDP_CMD_BLOCK,
-                                         MDP_BLOCK_POWER_ON, FALSE);
-                                 /* DSI Video Timing generator disable */
-                                 outpdw(MDP_BASE + 0xE0000, 0x0);
-                                 /* Clear MDP Interrupt Enable register */
-                                 outpdw(MDP_BASE + 0x50, 0x0);
-                                 /* Set Overlay Proc 0 to reset state */
-                                 outpdw(MDP_BASE + 0x10004, 0x3);
-                                 mdp_pipe_ctrl(MDP_CMD_BLOCK,
-                                         MDP_BLOCK_POWER_OFF, FALSE);
-                         }
-
+		if (!(mdp_pdata->cont_splash_enabled))
 			mdp4_hw_init();
-                 }
 #else
 		mdp_hw_init(mdp_pdata->cont_splash_enabled);
 #endif
